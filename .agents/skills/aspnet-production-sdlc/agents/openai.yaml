@@ -1,0 +1,4 @@
+interface:
+  display_name: "ASP.NET Production SDLC"
+  short_description: "Apply production-grade ASP.NET Core SDLC rules."
+  default_prompt: "Use this skill when planning or implementing GROUP1_Ass2 Razor Pages layered work across Razor, ServiceLayer, DataAccessLayer, EF Core, middleware, and tests."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Request Planning"
+  short_description: "Clarify and plan before coding."
+  default_prompt: "Use this skill when a user asks for a change that needs clarification, trade-off analysis, or implementation planning before code edits."

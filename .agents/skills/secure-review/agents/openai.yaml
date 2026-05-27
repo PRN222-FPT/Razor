@@ -1,0 +1,4 @@
+interface:
+  display_name: "Secure Review"
+  short_description: "Review ASP.NET Core changes for security and data safety."
+  default_prompt: "Use this skill before committing or handing off code that touches authentication, authorization, data access, secrets, PII, or public web surfaces."

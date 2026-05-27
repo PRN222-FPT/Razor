@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Strategy"
+  short_description: "Plan and verify unit, integration, and Playwright coverage."
+  default_prompt: "Use this skill when adding or changing tests for GROUP1_Ass2 Razor Pages, ServiceLayer, DataAccessLayer, EF Core, middleware, or repository/unit-of-work behavior."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Session Handoff"
+  short_description: "Prepare compact context for new sessions and push readiness."
+  default_prompt: "Use this skill before push, handoff, or a new AI session to summarize context, decisions, verification, and risks."

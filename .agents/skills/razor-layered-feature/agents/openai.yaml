@@ -1,0 +1,4 @@
+interface:
+  display_name: "Razor Layered Feature"
+  short_description: "Extend the Ass2 Razor Pages layered architecture."
+  default_prompt: "Use this skill when adding or reviewing Razor Pages features in GROUP1_Ass2 with ServiceLayer, DataAccessLayer, Repository, Unit of Work, and middleware boundaries."

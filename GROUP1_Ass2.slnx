@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="DataAccessLayer/DataAccessLayer.csproj" Id="411620eb-18d3-44c8-94c3-5d6615be2cbd" />
+  <Project Path="Razor/Razor.csproj" />
+  <Project Path="ServiceLayer/ServiceLayer.csproj" Id="8ba18735-aa74-4a76-a743-fb136b3f562d" />
+</Solution>
