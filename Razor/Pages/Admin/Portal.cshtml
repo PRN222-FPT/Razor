@@ -1,0 +1,441 @@
+@page
+@model Razor.Pages.Admin.PortalModel
+@{
+    ViewData["Title"] = "User Management";
+    ViewData["HideAppChrome"] = true;
+    ViewData["BodyClass"] = "admin-blue-body";
+
+    var adminCount = Math.Max(0, Model.UserManagement.TotalUsers - Model.UserManagement.TotalStudents - Model.UserManagement.TotalTeachers);
+}
+
+<section class="admin-blue-page">
+    <nav class="admin-blue-topbar" aria-label="Workspace navigation">
+        <div class="admin-blue-brand-group">
+            <a class="admin-blue-brand" asp-page="/Admin/Portal">FPT UniRAG</a>
+        </div>
+
+        <div class="admin-blue-top-actions">
+            <a class="admin-blue-primary-button" href="#create-subject">
+                <span class="admin-blue-add-icon" aria-hidden="true"></span>
+                Add Subject
+            </a>
+            <a class="admin-blue-secondary-button" href="#import-students">
+                <span class="admin-blue-upload-icon" aria-hidden="true"></span>
+                Import Students
+            </a>
+            <form method="post" asp-page="/Index" asp-page-handler="Logout" class="admin-blue-logout-form">
+                <button type="submit" class="admin-blue-logout-button">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <aside class="admin-blue-sidebar" aria-label="Admin navigation">
+        <nav class="admin-blue-menu">
+            <a class="active" asp-page="/Admin/Portal"><span class="admin-blue-menu-mark dashboard" aria-hidden="true"></span>Dashboard</a>
+        </nav>
+    </aside>
+
+    <main class="admin-blue-main">
+        <div class="admin-blue-content">
+            <header class="admin-blue-header">
+                <div>
+                    <h1>User Management</h1>
+                    <p>Review and manage access levels for the FPT UniRAG community.</p>
+                </div>
+            </header>
+
+            @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+            {
+                <div class="admin-blue-alert success" role="status">@Model.SuccessMessage</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Model.ImportErrorDetails))
+            {
+                <div class="admin-blue-alert warning" role="status">
+                    <strong>Import notes</strong>
+                    <ul>
+                        @foreach (var error in Model.ImportErrorDetails.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <section class="admin-blue-metrics" aria-label="User summary">
+                <article class="admin-blue-metric student">
+                    <div>
+                        <p>Total Students</p>
+                        <strong>@Model.UserManagement.TotalStudents.ToString("N0")</strong>
+                    </div>
+                    <span class="admin-blue-metric-icon school" aria-hidden="true"></span>
+                </article>
+                <article class="admin-blue-metric teacher">
+                    <div>
+                        <p>Active Teachers</p>
+                        <strong>@Model.UserManagement.TotalTeachers.ToString("N0")</strong>
+                    </div>
+                    <span class="admin-blue-metric-icon teacher" aria-hidden="true"></span>
+                </article>
+                <article class="admin-blue-metric admin">
+                    <div>
+                        <p>System Admins</p>
+                        <strong>@adminCount.ToString("N0")</strong>
+                    </div>
+                    <span class="admin-blue-metric-icon admin" aria-hidden="true"></span>
+                </article>
+            </section>
+
+            <section class="admin-blue-create-card" id="import-students" aria-labelledby="import-students-title">
+                <div class="admin-blue-create-heading">
+                    <div>
+                        <h2 id="import-students-title">Import Student Accounts</h2>
+                        <p>Upload a Google Sheets export with headers MSSV, email, name. The system will generate and email credentials automatically.</p>
+                    </div>
+                    <span class="admin-blue-role-badge student">Students</span>
+                </div>
+
+                <form method="post"
+                      asp-page-handler="ImportStudents"
+                      enctype="multipart/form-data"
+                      class="admin-blue-create-form">
+                    <input type="hidden" asp-for="SearchTerm" />
+                    <input type="hidden" asp-for="RoleFilter" />
+                    <div asp-validation-summary="ModelOnly" class="admin-blue-validation-summary"></div>
+
+                    <div class="admin-blue-form-grid import">
+                        <div class="admin-blue-field wide">
+                            <label asp-for="ImportStudents.File"></label>
+                            <input asp-for="ImportStudents.File" type="file" accept=".xlsx,.csv" />
+                            <span asp-validation-for="ImportStudents.File"></span>
+                        </div>
+                    </div>
+
+                    <div class="admin-blue-import-format">
+                        <code>MSSV</code>
+                        <code>email</code>
+                        <code>name</code>
+                    </div>
+
+                    <div class="admin-blue-create-actions">
+                        <button class="admin-blue-primary-button" type="submit">
+                            <span class="admin-blue-upload-icon" aria-hidden="true"></span>
+                            Import Students
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="admin-blue-create-card" id="create-subject" aria-labelledby="create-subject-title">
+                <div class="admin-blue-create-heading">
+                    <div>
+                        <h2 id="create-subject-title">Create Subject</h2>
+                        <p>Add an academic subject and assign available teachers at the same time.</p>
+                    </div>
+                    <span class="admin-blue-role-badge student">Subject</span>
+                </div>
+
+                <form method="post" asp-page-handler="CreateSubject" class="admin-blue-create-form">
+                    <input type="hidden" asp-for="SearchTerm" />
+                    <input type="hidden" asp-for="RoleFilter" />
+                    <div asp-validation-summary="ModelOnly" class="admin-blue-validation-summary"></div>
+
+                    <div class="admin-blue-form-grid subject">
+                        <div class="admin-blue-field">
+                            <label asp-for="NewSubject.SubjectCode"></label>
+                            <input asp-for="NewSubject.SubjectCode" autocomplete="off" placeholder="PRN222" />
+                            <span asp-validation-for="NewSubject.SubjectCode"></span>
+                        </div>
+                        <div class="admin-blue-field">
+                            <label asp-for="NewSubject.SubjectName"></label>
+                            <input asp-for="NewSubject.SubjectName" autocomplete="off" placeholder="Razor Pages Development" />
+                            <span asp-validation-for="NewSubject.SubjectName"></span>
+                        </div>
+                        <div class="admin-blue-field wide">
+                            <label asp-for="NewSubject.Description"></label>
+                            <input asp-for="NewSubject.Description" autocomplete="off" placeholder="Optional subject description" />
+                            <span asp-validation-for="NewSubject.Description"></span>
+                        </div>
+                    </div>
+
+                    <div class="admin-blue-teacher-picker">
+                        <div class="admin-blue-field-label">
+                            <label asp-for="NewSubject.AssignedTeacherIds"></label>
+                            <span>Select teachers who will be assigned to this subject.</span>
+                        </div>
+
+                        @if (Model.Teachers.Count == 0)
+                        {
+                            <p class="admin-blue-empty-inline">No teachers are available yet.</p>
+                        }
+                        else
+                        {
+                            <div class="admin-blue-teacher-list">
+                                @foreach (var teacher in Model.Teachers)
+                                {
+                                    <label class="admin-blue-teacher-option">
+                                        <input type="checkbox"
+                                               name="NewSubject.AssignedTeacherIds"
+                                               value="@teacher.TeacherId" />
+                                        <span>
+                                            <strong>@teacher.FullName</strong>
+                                            <small>@PortalModel.FormatTeacherAssignment(teacher)</small>
+                                        </span>
+                                    </label>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="admin-blue-create-actions">
+                        <a class="admin-blue-secondary-button" href="#create-teacher">Assign Teacher</a>
+                        <button class="admin-blue-primary-button" type="submit">
+                            <span class="admin-blue-add-icon" aria-hidden="true"></span>
+                            Create Subject
+                        </button>
+                    </div>
+                </form>
+
+                <div class="admin-blue-subject-list" aria-label="Existing subjects">
+                    @if (Model.Subjects.Count == 0)
+                    {
+                        <p>No subjects have been created yet.</p>
+                    }
+                    else
+                        {
+                            @foreach (var subject in Model.Subjects.Take(6))
+                            {
+                                <article>
+                                    <div>
+                                        <strong>@subject.SubjectCode</strong>
+                                        <span>@subject.SubjectName</span>
+                                    </div>
+                                    <div class="admin-blue-subject-actions">
+                                        <small class="@(subject.HasLeader ? "assigned" : null)">
+                                            @PortalModel.FormatSubjectStatus(subject)
+                                        </small>
+                                        <form method="post" asp-page-handler="DeleteSubject" class="admin-blue-inline-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="subjectId" value="@subject.SubjectId" />
+                                            <button type="submit"
+                                                    class="admin-blue-danger-button"
+                                                    onclick="return confirm('Delete subject @subject.SubjectCode and all related data?');">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </article>
+                            }
+                        }
+                    </div>
+                </section>
+
+            <section class="admin-blue-create-card" id="create-teacher" aria-labelledby="create-teacher-title">
+                <div class="admin-blue-create-heading">
+                    <div>
+                        <h2 id="create-teacher-title">Create Teacher Account</h2>
+                        <p>Enter a teacher email and let the system generate credentials automatically. You can optionally assign a subject and mark the teacher as that subject's leader.</p>
+                    </div>
+                    <span class="admin-blue-role-badge teacher">Teacher</span>
+                </div>
+
+                <form method="post" asp-page-handler="CreateTeacher" class="admin-blue-create-form">
+                    <input type="hidden" asp-for="SearchTerm" />
+                    <input type="hidden" asp-for="RoleFilter" />
+                    <div asp-validation-summary="ModelOnly" class="admin-blue-validation-summary"></div>
+
+                    <div class="admin-blue-form-grid">
+                        <div class="admin-blue-field">
+                            <label asp-for="NewTeacher.Email"></label>
+                            <input asp-for="NewTeacher.Email" autocomplete="email" />
+                            <span asp-validation-for="NewTeacher.Email"></span>
+                        </div>
+                        <div class="admin-blue-field">
+                            <label asp-for="NewTeacher.SubjectId"></label>
+                            <select asp-for="NewTeacher.SubjectId">
+                                <option value="">No subject assignment</option>
+                                @foreach (var subject in Model.Subjects)
+                                {
+                                    <option value="@subject.SubjectId">
+                                        @Model.FormatSubjectOption(subject)
+                                    </option>
+                                }
+                            </select>
+                            <span asp-validation-for="NewTeacher.SubjectId"></span>
+                        </div>
+                        <label class="admin-blue-checkbox">
+                            <input asp-for="NewTeacher.IsSubjectLeader" />
+                            <span>Leader of this subject</span>
+                        </label>
+                    </div>
+
+                    <div class="admin-blue-create-actions">
+                        <button class="admin-blue-primary-button" type="submit">
+                            <span class="admin-blue-add-icon" aria-hidden="true"></span>
+                            Create Teacher
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="admin-blue-table-card" aria-labelledby="admin-users-title">
+                <h2 class="visually-hidden" id="admin-users-title">Users</h2>
+                <div class="admin-blue-table-toolbar">
+                    <div class="admin-blue-filter-row" aria-label="User filters">
+                        <a asp-page="/Admin/Portal"
+                           asp-route-searchTerm="@Model.SearchTerm"
+                           class="@(Model.IsRoleSelected(null) ? "active" : null)">
+                            All Roles
+                            @if (Model.IsRoleSelected(null))
+                            {
+                                <span aria-hidden="true">x</span>
+                            }
+                        </a>
+                        <a asp-page="/Admin/Portal"
+                           asp-route-searchTerm="@Model.SearchTerm"
+                           asp-route-roleFilter="student"
+                           class="@(Model.IsRoleSelected("student") ? "active" : null)">Students</a>
+                        <a asp-page="/Admin/Portal"
+                           asp-route-searchTerm="@Model.SearchTerm"
+                           asp-route-roleFilter="teacher"
+                           class="@(Model.IsRoleSelected("teacher") ? "active" : null)">Teachers</a>
+                        <a asp-page="/Admin/Portal"
+                           asp-route-searchTerm="@Model.SearchTerm"
+                           asp-route-roleFilter="admin"
+                           class="@(Model.IsRoleSelected("admin") ? "active" : null)">Admins</a>
+                    </div>
+
+                    <div class="admin-blue-table-actions">
+                        <form method="get" class="admin-blue-table-search" role="search">
+                            <input type="hidden" name="roleFilter" value="@Model.RoleFilter" />
+                            <span class="admin-blue-search-icon" aria-hidden="true"></span>
+                            <input type="search" name="searchTerm" value="@Model.SearchTerm" placeholder="Search in table..." />
+                        </form>
+                        <button class="admin-blue-column-button" type="button" aria-label="Column settings">
+                            <span class="admin-blue-columns-icon" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-blue-table-wrap">
+                    <table class="admin-blue-users-table">
+                        <thead>
+                            <tr>
+                                <th class="check-cell" scope="col"><input type="checkbox" aria-label="Select all users" /></th>
+                                <th scope="col">User Info</th>
+                                <th scope="col">ID / Account</th>
+                                <th scope="col">Role</th>
+                                <th scope="col">Created</th>
+                                <th scope="col">Status</th>
+                                <th class="actions-cell" scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.UserManagement.Users.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="7" class="admin-blue-empty">No users match the current filter.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var user in Model.UserManagement.Users)
+                                {
+                                    var roleClass = PortalModel.GetRoleClass(user.Role);
+                                    <tr class="@(user.IsBlocked ? "is-muted" : null)">
+                                        <td class="check-cell"><input type="checkbox" aria-label="Select @user.FullName" /></td>
+                                        <td>
+                                            <div class="admin-blue-user-cell">
+                                                <span class="admin-blue-user-avatar @roleClass">@PortalModel.GetInitials(user.FullName)</span>
+                                                <div>
+                                                    <strong>@user.FullName</strong>
+                                                    <span>Applied: @PortalModel.FormatAppliedDate(user.CreatedAt)</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <code>@(string.IsNullOrWhiteSpace(user.InstitutionalId) ? "NOT-ASSIGNED" : user.InstitutionalId)</code>
+                                            <span>@user.Email</span>
+                                        </td>
+                                        <td>
+                                            <span class="admin-blue-role-badge @roleClass">@PortalModel.FormatRole(user.Role)</span>
+                                        </td>
+                                        <td>@PortalModel.FormatCreatedAt(user.CreatedAt)</td>
+                                        <td>
+                                            <span class="admin-blue-status @(user.IsBlocked ? "blocked" : "active")">
+                                                <span aria-hidden="true"></span>
+                                                @(user.IsBlocked ? "Suspended" : "Active")
+                                            </span>
+                                        </td>
+                                        <td class="actions-cell">
+                                            @if (string.Equals(user.Role, "student", StringComparison.OrdinalIgnoreCase)
+                                                || string.Equals(user.Role, "teacher", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <form method="post" asp-page-handler="ResetPassword" class="admin-blue-inline-form">
+                                                    <input type="hidden" name="userId" value="@user.UserId" />
+                                                    <input type="hidden" asp-for="SearchTerm" />
+                                                    <input type="hidden" asp-for="RoleFilter" />
+                                                    <button type="submit"
+                                                            class="admin-blue-reset-button"
+                                                            onclick="return confirm('Reset password for @user.FullName? A new password will be emailed.');">
+                                                        Reset Password
+                                                    </button>
+                                                </form>
+
+                                                if (user.IsBlocked)
+                                                {
+                                                    <form method="post" asp-page-handler="ReactivateAccount" class="admin-blue-inline-form">
+                                                        <input type="hidden" name="userId" value="@user.UserId" />
+                                                        <input type="hidden" asp-for="SearchTerm" />
+                                                        <input type="hidden" asp-for="RoleFilter" />
+                                                        <button type="submit"
+                                                                class="admin-blue-primary-button"
+                                                                onclick="return confirm('Reactivate @user.FullName?');">
+                                                            Reactivate
+                                                        </button>
+                                                    </form>
+                                                }
+                                                else
+                                                {
+                                                    <form method="post" asp-page-handler="SuspendAccount" class="admin-blue-inline-form">
+                                                        <input type="hidden" name="userId" value="@user.UserId" />
+                                                        <input type="hidden" asp-for="SearchTerm" />
+                                                        <input type="hidden" asp-for="RoleFilter" />
+                                                        <button type="submit"
+                                                                class="admin-blue-danger-button"
+                                                                onclick="return confirm('Suspend @user.FullName?');">
+                                                            Suspend
+                                                        </button>
+                                                    </form>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="admin-blue-empty-inline">Not available</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <footer class="admin-blue-pagination">
+                    <span>
+                        Showing <strong>1 - @Model.UserManagement.Users.Count.ToString("N0")</strong>
+                        of <strong>@Model.UserManagement.TotalUsers.ToString("N0")</strong> entries
+                    </span>
+                    <div>
+                        <button type="button" disabled>Previous</button>
+                        <button type="button" disabled>Next</button>
+                    </div>
+                </footer>
+            </section>
+        </div>
+    </main>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,354 @@
+@page
+@model Razor.Pages.Student.ChatModel
+@{
+    ViewData["Title"] = "Student Chat";
+    ViewData["HideAppChrome"] = true;
+    ViewData["BodyClass"] = "student-chat-body";
+}
+
+<section class="student-chat-page">
+    <header class="student-chat-topbar">
+        <a class="student-chat-brand" asp-page="/Student/Chat">
+            <span class="student-chat-school-icon" aria-hidden="true"></span>
+            FPT UniRAG
+        </a>
+        <div class="student-chat-top-actions">
+            <a asp-page="/Account/ChangePassword" class="student-chat-account-link">
+                <span class="student-chat-menu-icon account" aria-hidden="true"></span>
+                Change Password
+            </a>
+            <a asp-page="/Account/ForgotPassword" class="student-chat-account-link secondary">
+                <span class="student-chat-menu-icon forgot" aria-hidden="true"></span>
+                Forgot Password
+            </a>
+            <form method="post" asp-page="/Index" asp-page-handler="Logout" class="student-chat-logout-form">
+                <button type="submit" class="student-chat-logout-button">
+                    <span class="student-chat-menu-icon logout" aria-hidden="true"></span>
+                    Logout
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <aside class="student-chat-sidebar">
+        <div class="student-chat-sidebar-head">
+            <div class="student-chat-portal-mark">F</div>
+            <div>
+                <h2>FPT Academic</h2>
+                <p>Management Portal</p>
+            </div>
+        </div>
+        <form method="post" asp-page="/Student/Chat" asp-page-handler="NewChat" asp-route-view="chat" class="student-chat-new-form">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="student-chat-new">
+                <span class="student-chat-plus-icon" aria-hidden="true"></span>
+                New Chat
+            </button>
+        </form>
+
+        <section class="student-chat-history" aria-label="Recent chat sessions">
+            <div class="student-chat-section-title">
+                <h3>Recent sessions</h3>
+                <span>@Model.Sessions.Count</span>
+            </div>
+
+            <div class="student-chat-history-list">
+                @if (Model.Sessions.Count == 0)
+                {
+                    <p class="student-chat-empty compact">No saved sessions yet.</p>
+                }
+                else
+                {
+                    foreach (var session in Model.Sessions)
+                    {
+                        var isActiveSession = Model.SessionId.HasValue && Model.SessionId.Value == session.SessionId;
+                        <a class="student-chat-history-item @(isActiveSession ? "active" : null)"
+                           asp-page="/Student/Chat"
+                           asp-route-view="chat"
+                           asp-route-sessionId="@session.SessionId">
+                            <strong>@session.Title</strong>
+                        </a>
+                    }
+                }
+            </div>
+        </section>
+
+        <nav class="student-chat-menu" aria-label="Student navigation">
+            <a class="@(Model.IsDocumentsView ? "active" : null)" asp-page="/Student/Chat" asp-route-view="documents">
+                <span class="student-chat-menu-icon documents" aria-hidden="true"></span>
+                Documents
+            </a>
+            <a asp-page="/Account/ChangePassword">
+                <span class="student-chat-menu-icon account" aria-hidden="true"></span>
+                Change Password
+            </a>
+            <a asp-page="/Account/ForgotPassword">
+                <span class="student-chat-menu-icon forgot" aria-hidden="true"></span>
+                Forgot Password
+            </a>
+        </nav>
+    </aside>
+
+    <main class="student-chat-main">
+        <header class="student-chat-header">
+            <div>
+                <h1>@(Model.IsDocumentsView ? "Student Documents" : "Student Chat")</h1>
+                <p>
+                    <span aria-hidden="true"></span>
+                    @(Model.IsDocumentsView
+                        ? $"{Model.DocumentLibrary.TotalDocuments} uploaded document(s) across {Model.DocumentLibrary.Subjects.Count} subject(s)"
+                        : Model.SessionId.HasValue ? "Active RAG session" : "No active session")
+                </p>
+            </div>
+        </header>
+
+        @if (Model.IsDocumentsView)
+        {
+            <div class="student-chat-workspace student-chat-workspace-documents">
+                <section class="student-chat-library-panel" aria-label="Uploaded subject documents">
+                    <div class="student-chat-library-body">
+                        @if (Model.DocumentLibrary.TotalDocuments == 0)
+                        {
+                            <div class="student-chat-empty">No documents have been uploaded yet.</div>
+                        }
+                        else
+                        {
+                            foreach (var subjectGroup in Model.DocumentLibrary.Subjects)
+                            {
+                                <section class="student-chat-library-group">
+                                    <div class="student-chat-section-title">
+                                        <h3>@subjectGroup.SubjectCode - @subjectGroup.SubjectName</h3>
+                                        <span>@subjectGroup.Documents.Count file(s)</span>
+                                    </div>
+
+                                    @if (subjectGroup.Documents.Count == 0)
+                                    {
+                                        <p class="student-chat-empty compact">No uploaded documents for this subject.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="student-chat-library-list">
+                                            @foreach (var document in subjectGroup.Documents)
+                                            {
+                                                <a class="student-chat-resource student-chat-document-card"
+                                                   asp-page="/Student/Documents/Details"
+                                                   asp-route-documentId="@document.DocumentId">
+                                                    <div class="student-chat-resource-head">
+                                                        <span class="student-chat-file-icon @ChatModel.GetDocumentFileTypeCssClass(document.FileType)" aria-hidden="true">
+                                                            @ChatModel.GetDocumentFileTypeLabel(document.FileType)
+                                                        </span>
+                                                        <strong>@document.Title</strong>
+                                                    </div>
+                                                    <span class="student-chat-resource-meta">
+                                                        @(string.IsNullOrWhiteSpace(document.ChapterTitle) ? "General" : document.ChapterTitle)
+                                                        |
+                                                        @(document.CreatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "Unknown upload time")
+                                                    </span>
+                                                    <span class="student-chat-resource-score">
+                                                        @ChatModel.FormatDocumentStatus(document.Status)
+                                                    </span>
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </section>
+                            }
+                        }
+                    </div>
+                </section>
+
+                <aside class="student-chat-context" aria-label="Document library summary">
+                    <header>
+                        <h2><span class="student-chat-book-icon" aria-hidden="true"></span>Documents</h2>
+                    </header>
+                    <div class="student-chat-context-body">
+                        <section>
+                            <div class="student-chat-section-title">
+                                <h3>Overview</h3>
+                                <span>@Model.DocumentLibrary.TotalDocuments Total</span>
+                            </div>
+                            <div class="student-chat-resource-list">
+                                @foreach (var subjectGroup in Model.DocumentLibrary.Subjects)
+                                {
+                                    <article class="student-chat-resource">
+                                        <div class="student-chat-resource-head">
+                                            <span class="student-chat-resource-status" aria-hidden="true"></span>
+                                            <strong>@subjectGroup.SubjectCode</strong>
+                                        </div>
+                                        <span class="student-chat-resource-meta">@subjectGroup.SubjectName</span>
+                                        <span class="student-chat-resource-score">@subjectGroup.Documents.Count document(s)</span>
+                                    </article>
+                                }
+                            </div>
+                        </section>
+                    </div>
+                    <footer>
+                        <div>
+                            <strong>Subject Documents</strong>
+                            <p>Students can review which materials have been uploaded for each subject.</p>
+                        </div>
+                    </footer>
+                </aside>
+            </div>
+        }
+        else
+        {
+            <div class="student-chat-workspace">
+                <section class="student-chat-thread-panel" aria-label="AI chat conversation">
+                    <div class="student-chat-thread" data-student-chat-thread>
+                        @if (Model.Messages.Count == 0)
+                        {
+                            <div class="student-chat-empty" data-student-chat-empty>No messages yet. Start a new chat to ask a question.</div>
+                        }
+                        else
+                        {
+                            foreach (var message in Model.Messages)
+                            {
+                                if (message.SenderRole.Equals("student", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    <div class="student-chat-message-row user">
+                                        <div class="student-chat-user-bubble">@message.MessageContent</div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="student-chat-message-row assistant">
+                                        <div class="student-chat-bot-avatar" aria-hidden="true">AI</div>
+                                        <div class="student-chat-answer">
+                                            <div class="student-chat-ai-bubble" data-student-chat-markdown-source="@message.MessageContent">
+                                                <p>@message.MessageContent</p>
+                                            </div>
+                                            @if (message.Citations.Count > 0)
+                                            {
+                                                <div class="student-chat-citations student-chat-message-citations" aria-label="Message citations">
+                                                    @foreach (var citation in message.Citations)
+                                                    {
+                                                        <button type="button"
+                                                                class="student-chat-citation-chip"
+                                                                data-citation-card
+                                                                data-title="@citation.DocumentTitle"
+                                                                data-subject="@citation.SubjectCode"
+                                                                data-chapter="@citation.ChapterTitle"
+                                                                data-chunk="@citation.ChunkIndex"
+                                                                data-score="@citation.Score.ToString("P0")"
+                                                                data-excerpt="@citation.Excerpt">
+                                                            @citation.DocumentTitle
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        }
+                    </div>
+
+                    <form class="student-chat-composer" method="post" data-student-chat-form data-ask-url="@Url.Page("/Student/Chat", "Ask")">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Input.SessionId" value="@Model.SessionId" data-student-chat-session />
+                        <div class="student-chat-composer-card">
+                            <select class="student-chat-subject-select" asp-for="Input.SubjectId" aria-label="Choose subject" data-student-chat-subject>
+                                @foreach (var subject in Model.Subjects)
+                                {
+                                    <option value="@subject.SubjectId">@subject.SubjectCode - @subject.SubjectName</option>
+                                }
+                            </select>
+                            <label class="visually-hidden" for="student-chat-question">Ask a question about the course</label>
+                            <div class="student-chat-composer-row">
+                                <textarea id="student-chat-question"
+                                          asp-for="Input.Question"
+                                          data-student-chat-question
+                                          rows="1"
+                                          placeholder="Ask a question about the selected subject..."></textarea>
+                                <button type="submit" class="student-chat-send" aria-label="Send message" disabled>
+                                    <span class="student-chat-send-icon" aria-hidden="true"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="student-chat-validation" asp-validation-summary="All"></div>
+                    </form>
+                </section>
+
+                <aside class="student-chat-context" aria-label="Study context">
+                    <header>
+                        <h2><span class="student-chat-book-icon" aria-hidden="true"></span>Study Context</h2>
+                        <button type="button" aria-label="More context options">...</button>
+                    </header>
+                    <div class="student-chat-context-body">
+                        <section>
+                            <div class="student-chat-section-title">
+                                <h3>Loaded Resources</h3>
+                                <span data-student-chat-source-count>@Model.Citations.Count Sources</span>
+                            </div>
+                            <div class="student-chat-resource-list" data-student-chat-citations>
+                                @if (Model.Citations.Count == 0)
+                                {
+                                    <p class="student-chat-empty compact" data-student-chat-empty-citations>No resources loaded.</p>
+                                }
+                                else
+                                {
+                                    foreach (var citation in Model.Citations)
+                                    {
+                                        <article class="student-chat-resource"
+                                                 role="button"
+                                                 tabindex="0"
+                                                 data-citation-card
+                                                 data-title="@citation.DocumentTitle"
+                                                 data-subject="@citation.SubjectCode"
+                                                 data-chapter="@citation.ChapterTitle"
+                                                 data-chunk="@citation.ChunkIndex"
+                                                 data-score="@citation.Score.ToString("P0")"
+                                                 data-excerpt="@citation.Excerpt">
+                                            <div class="student-chat-resource-head">
+                                                <span class="student-chat-resource-status" aria-hidden="true"></span>
+                                                <strong>@citation.DocumentTitle</strong>
+                                            </div>
+                                            <span class="student-chat-resource-meta">
+                                                @citation.SubjectCode - @citation.ChapterTitle - Chunk @citation.ChunkIndex
+                                            </span>
+                                            <p class="student-chat-resource-excerpt">@citation.Excerpt</p>
+                                            <span class="student-chat-resource-score">
+                                                @citation.Score.ToString("P0") match
+                                            </span>
+                                        </article>
+                                    }
+                                }
+                            </div>
+                        </section>
+                    </div>
+                    <footer>
+                        <div>
+                            <strong>AI Assistant</strong>
+                            <p>Responses will use uploaded curriculum documents when available.</p>
+                        </div>
+                    </footer>
+                </aside>
+            </div>
+        }
+    </main>
+
+    <div class="student-chat-citation-modal" data-citation-modal hidden>
+        <div class="student-chat-citation-backdrop" data-citation-close></div>
+        <section class="student-chat-citation-dialog" role="dialog" aria-modal="true" aria-labelledby="citation-dialog-title">
+            <header>
+                <div>
+                    <span data-citation-score></span>
+                    <h2 id="citation-dialog-title" data-citation-title></h2>
+                    <p data-citation-meta></p>
+                </div>
+                <button type="button" aria-label="Close citation" data-citation-close>×</button>
+            </header>
+            <div class="student-chat-citation-content">
+                <p data-citation-excerpt></p>
+            </div>
+        </section>
+    </div>
+</section>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="~/js/student-chat.js" asp-append-version="true"></script>
+}

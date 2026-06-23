@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - FPT Student RAG Assistant</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter & JetBrains Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Theme Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "outline-variant": "#C8D4E6",
+                    "on-surface": "#1A1C1E",
+                    "tertiary": "#515F74",
+                    "on-surface-variant": "#43474E",
+                    "on-primary-container": "#001B3D",
+                    "surface-container-high": "#E2E2E6",
+                    "surface-container-lowest": "#FFFFFF",
+                    "on-primary": "#FFFFFF",
+                    "surface-tint": "#0061A4",
+                    "on-error": "#FFFFFF",
+                    "on-error-container": "#410002",
+                    "surface": "#F8F9FF",
+                    "background": "#F8F9FF",
+                    "surface-container-low": "#F1F3F9",
+                    "on-primary-fixed-variant": "#004A81",
+                    "secondary-fixed-dim": "#C3C6CF",
+                    "inverse-primary": "#9ECAFF",
+                    "outline": "#73777F",
+                    "on-primary-fixed": "#001D35",
+                    "on-background": "#1A1C1E",
+                    "surface-container-highest": "#E2E2E6",
+                    "on-secondary-container": "#101C2B",
+                    "tertiary-fixed": "#D6E3FF",
+                    "secondary-fixed": "#DDE2F0",
+                    "on-secondary": "#FFFFFF",
+                    "on-secondary-fixed-variant": "#404853",
+                    "secondary": "#535F70",
+                    "academic-dot": "#D1D9E6",
+                    "error-container": "#FFDAD6",
+                    "primary-fixed": "#D1E4FF",
+                    "error": "#BA1A1A",
+                    "secondary-container": "#D8E2FF",
+                    "surface-variant": "#E0E2EC",
+                    "surface-bright": "#F8F9FF",
+                    "on-tertiary": "#FFFFFF",
+                    "on-secondary-fixed": "#101C2B",
+                    "on-tertiary-container": "#001D35",
+                    "tertiary-fixed-dim": "#B8C8E8",
+                    "on-tertiary-fixed-variant": "#344766",
+                    "tertiary-container": "#D6E3FF",
+                    "primary-fixed-dim": "#9ECAFF",
+                    "inverse-on-surface": "#F1F0F4",
+                    "surface-container": "#EDEDF1",
+                    "primary": "#0061A4",
+                    "primary-container": "#D1E4FF",
+                    "surface-dim": "#D9D9E0",
+                    "inverse-surface": "#2F3033",
+                    "on-tertiary-fixed": "#001D35"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "container-max": "1440px",
+                    "stack-sm": "12px",
+                    "gutter": "24px",
+                    "base": "8px",
+                    "stack-lg": "48px",
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px",
+                    "stack-md": "24px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "code-sm": ["JetBrains Mono"],
+                    "body-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "headline-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "code-sm": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Custom styles for academic pattern */
+        .academic-pattern {
+            background-color: theme('colors.surface');
+            background-image: radial-gradient(circle, theme('colors.academic-dot') 1.2px, transparent 1.2px);
+            background-size: 32px 32px;
+        }
+        
+        /* Auto-fill fix for dark text on light background */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px theme('colors.surface-container-low') inset !important;
+            -webkit-text-fill-color: theme('colors.on-surface') !important;
+        }
+
+        .blur-gradient {
+            background: radial-gradient(circle at center, theme('colors.primary/0.08') 0%, transparent 70%);
+        }
+    </style>
+</head>
+<body class="academic-pattern font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col items-center justify-center relative overflow-hidden">
+<!-- Decorative ambient blur behind card -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] blur-gradient pointer-events-none z-0"></div>
+<main class="relative z-10 w-full max-w-[440px] px-margin-mobile md:px-0">
+<!-- Main Login Card -->
+<div class="bg-surface-container-lowest/90 backdrop-blur-[12px] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-outline-variant/30 p-stack-md md:p-stack-lg w-full flex flex-col gap-stack-md">
+<!-- Branding Header -->
+<div class="flex flex-col items-center text-center gap-stack-sm">
+<!-- Academic Intelligence Logo Icon -->
+<div class="w-16 h-16 bg-primary/5 rounded-xl flex items-center justify-center border border-primary/20 shadow-sm mb-2 group transition-transform hover:scale-105 duration-300">
+<span class="material-symbols-outlined text-[36px] text-primary" data-icon="school">school</span>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface tracking-tight">
+                    FPT Student RAG
+                </h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant max-w-[280px]">
+                    Access your personalized academic intelligence assistant
+                </p>
+</div>
+<!-- Authentication Form -->
+<form class="flex flex-col gap-stack-md w-full" id="loginForm">
+<!-- Email Field -->
+<div class="flex flex-col gap-base">
+<label class="font-label-md text-label-md text-on-surface-variant" for="email">Student Email</label>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline transition-colors group-focus-within:text-primary" data-icon="alternate_email">alternate_email</span>
+<input class="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg pl-12 pr-4 py-3.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-outline/60" id="email" name="email" placeholder="username@fpt.edu.vn" required="" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="flex flex-col gap-base">
+<label class="font-label-md text-label-md text-on-surface-variant" for="password">Password</label>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline transition-colors group-focus-within:text-primary" data-icon="lock">lock</span>
+<input class="w-full bg-surface-container-low border border-outline-variant/50 rounded-lg pl-12 pr-12 py-3.5 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-outline/60" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-outline hover:text-primary transition-colors focus:outline-none" id="togglePassword" type="button">
+<span class="material-symbols-outlined" data-icon="visibility" id="visibilityIcon">visibility</span>
+</button>
+</div>
+</div>
+<!-- Options Row -->
+<div class="flex items-center justify-between mt-[-4px]">
+<label class="flex items-center gap-2 cursor-pointer group">
+<div class="relative flex items-center">
+<input class="peer w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary/30 focus:ring-offset-0 bg-surface-container-low transition-all cursor-pointer" name="remember" type="checkbox"/>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant group-hover:text-on-surface transition-colors">Remember me</span>
+</label>
+<a class="font-label-md text-body-sm text-primary hover:underline underline-offset-4 transition-all" href="#">Forgot Password?</a>
+</div>
+<!-- Submit Button -->
+<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-4 rounded-lg shadow-[0_4px_12px_rgba(0,97,164,0.2)] hover:bg-primary/95 hover:shadow-[0_6px_16px_rgba(0,97,164,0.3)] active:scale-[0.98] transition-all duration-200 mt-2 flex justify-center items-center gap-2 group" type="submit">
+                    Sign In
+                    <span class="material-symbols-outlined text-sm transition-transform group-hover:translate-x-1" data-icon="arrow_forward" data-weight="fill" style="font-variation-settings: 'FILL' 1;">arrow_forward</span>
+</button>
+</form>
+<!-- Footer Hints -->
+<div class="text-center pt-stack-sm mt-stack-sm">
+<p class="font-body-sm text-body-sm text-on-surface-variant/80">
+                    Welcome to FPT Academic Portal
+                </p>
+<div class="mt-4 flex justify-center gap-4">
+<div class="w-1.5 h-1.5 rounded-full bg-primary/20"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-primary/20"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-primary/20"></div>
+</div>
+</div>
+</div>
+</main>
+<script>
+        // Password Visibility Toggle
+        document.addEventListener('DOMContentLoaded', () => {
+            const togglePasswordBtn = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const visibilityIcon = document.getElementById('visibilityIcon');
+
+            togglePasswordBtn.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                const iconName = type === 'password' ? 'visibility' : 'visibility_off';
+                visibilityIcon.textContent = iconName;
+                visibilityIcon.setAttribute('data-icon', iconName);
+            });
+            
+            // Simple form prevention for demo
+            const loginForm = document.getElementById('loginForm');
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const btn = loginForm.querySelector('button[type="submit"]');
+                const originalContent = btn.innerHTML;
+                
+                btn.innerHTML = '<span class="material-symbols-outlined animate-spin" data-icon="progress_activity">progress_activity</span> Authenticating...';
+                btn.classList.add('opacity-75', 'pointer-events-none');
+                
+                // Simulate network request
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.remove('opacity-75', 'pointer-events-none');
+                }, 1500);
+            });
+        });
+    </script>
+</body></html>

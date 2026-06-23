@@ -46,7 +46,7 @@ GROUP1_Ass2.slnx
 |---|---|---|---|
 | `Razor` | HTTP routing, PageModels, form binding, Razor rendering, DI composition | Service interfaces, DTOs, view models | EF Core `DbContext`, repositories, SQL |
 | `ServiceLayer` | Business rules, validation orchestration, entity-to-DTO mapping | `IUnitOfWork`, entities, DTOs | Razor Pages, HTTP, view-specific state |
-| `DataAccessLayer` | Entities, EF Core schema, repositories, unit-of-work commit boundary | EF Core, SQL Server provider | Services, Razor Pages |
+| `DataAccessLayer` | Entities, EF Core schema, repositories, unit-of-work commit boundary | EF Core, PostgreSQL provider | Services, Razor Pages |
 
 ## Dependency Flow
 
@@ -57,7 +57,7 @@ flowchart TD
     Services --> Uow["IUnitOfWork"]
     Uow --> Repo["IRepository<T>"]
     Repo --> Db["AppDbContext / EF Core"]
-    Db --> Sql["SQL Server / LocalDB"]
+    Db --> Sql["PostgreSQL"]
 ```
 
 Dependencies flow downward only. `Razor` references `ServiceLayer`; `ServiceLayer` references `DataAccessLayer`; `DataAccessLayer` references no higher layer.
@@ -96,7 +96,7 @@ sequenceDiagram
 - `FindAsync`
 - `Query`
 
-`IUnitOfWork` exposes aggregate repositories and centralizes `SaveChangesAsync()`. Repositories do not commit independently.
+`IUnitOfWork` exposes repositories and centralizes `SaveChangesAsync()`. Repositories do not commit independently.
 
 | Decision | Benefit | Trade-off |
 |---|---|---|
@@ -122,8 +122,10 @@ The middleware logs trace ID, method, and path. It does not log request bodies, 
 `Razor/Program.cs` registers:
 
 ```csharp
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnectionString");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
@@ -132,7 +134,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 
 `DbContext`, unit of work, and services are scoped per request.
 
-In `Development`, `Program.cs` calls `EnsureCreatedAsync()` to create the LocalDB demo schema from the EF Core model when migrations are not available. Do not use this as a production migration strategy; production deployments should use explicit EF Core migrations.
+Because this project is configured for an existing PostgreSQL database, startup does not call `EnsureCreatedAsync()` or apply migrations automatically. Database schema changes should be handled explicitly through the database-first workflow or controlled migrations if the team later adopts code-first changes.
 
 ## Security Notes
 

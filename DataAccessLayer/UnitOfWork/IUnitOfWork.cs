@@ -1,13 +1,11 @@
-using DataAccessLayer.Entities;
 using DataAccessLayer.Repositories;
 
 namespace DataAccessLayer.UnitOfWork;
 
-public interface IUnitOfWork : IDisposable
+public interface IUnitOfWork : IAsyncDisposable
 {
-    IRepository<Category> Categories { get; }
+    IRepository<TEntity> Repository<TEntity>()
+        where TEntity : class;
 
-    IRepository<Product> Products { get; }
-
-    Task<int> SaveChangesAsync();
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
