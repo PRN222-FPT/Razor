@@ -27,7 +27,7 @@ public sealed class StudentChatModelTests
         var redirect = Assert.IsType<RedirectToPageResult>(result);
         Assert.Equal("/Student/Chat", redirect.PageName);
         Assert.Equal("chat", redirect.RouteValues?["view"]);
-        Assert.Equal(true, redirect.RouteValues?["draft"]);
+        Assert.DoesNotContain("draft", redirect.RouteValues!.Keys);
         Assert.Null(service.NewSessionUserId);
         Assert.Null(service.CreatedSessionId);
     }
@@ -63,6 +63,20 @@ public sealed class StudentChatModelTests
         await model.OnGetAsync(CancellationToken.None);
 
         Assert.Equal(sessionId, service.LastPageSessionId);
+        Assert.Null(service.NewSessionUserId);
+    }
+
+    [Fact]
+    public async Task OnGetAsync_CreatesFreshSession_WhenNoSessionIsSelected()
+    {
+        var service = new RecordingRagChatService();
+        var model = CreateModel(service);
+
+        await model.OnGetAsync(CancellationToken.None);
+
+        Assert.NotNull(service.NewSessionUserId);
+        Assert.NotNull(service.CreatedSessionId);
+        Assert.Equal(service.CreatedSessionId, service.LastPageSessionId);
     }
 
     [Fact]
