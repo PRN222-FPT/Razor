@@ -14,7 +14,7 @@ namespace ServiceLayer.Tests;
 public sealed class AdminUserServiceSubjectTests
 {
     [Fact]
-    public async Task CreateSubjectAsync_AssignsSelectedTeachers()
+    public async Task CreateSubjectAsync_AssignsSelectedTeachersAndHeader()
     {
         await using var context = CreateContext();
         var existingSubjectId = Guid.NewGuid();
@@ -57,7 +57,8 @@ public sealed class AdminUserServiceSubjectTests
                 "PRN222",
                 "Razor Pages",
                 "Web development subject",
-                [teacherOneId, teacherTwoId]));
+                [teacherOneId, teacherTwoId],
+                teacherTwoId));
 
         Assert.True(result.Succeeded);
         var subject = await context.Subjects.SingleAsync(item => item.SubjectCode == "PRN222");
@@ -65,14 +66,114 @@ public sealed class AdminUserServiceSubjectTests
         Assert.Equal("Razor Pages", subject.SubjectName);
         Assert.Equal(3, await context.TeacherSubjects.CountAsync());
         Assert.Equal(2, await context.TeacherSubjects.CountAsync(item => item.TeacherId == teacherOneId));
+        Assert.Equal(1, await context.TeacherSubjects.CountAsync(item => item.SubjectId == subject.SubjectId && item.IsHeadOfDepartment));
+        Assert.Equal(teacherTwoId, await context.TeacherSubjects
+            .Where(item => item.SubjectId == subject.SubjectId && item.IsHeadOfDepartment)
+            .Select(item => item.TeacherId)
+            .SingleAsync());
         Assert.All(await context.TeacherSubjects.ToListAsync(), item =>
         {
             Assert.True(item.SubjectId == subject.SubjectId || item.SubjectId == existingSubjectId);
             if (item.SubjectId == subject.SubjectId)
             {
-                Assert.False(item.IsHeadOfDepartment);
+                Assert.Equal(item.TeacherId == teacherTwoId, item.IsHeadOfDepartment);
             }
         });
+    }
+
+    [Fact]
+    public async Task CreateSubjectAsync_FailsWhenHeaderTeacherIsMissing()
+    {
+        await using var context = CreateContext();
+        var teacherOneId = Guid.NewGuid();
+
+        context.Teachers.Add(new Teacher
+        {
+            TeacherId = teacherOneId,
+            FullName = "Alice Nguyen",
+            Email = "alice@example.com",
+            Department = "Software"
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        var result = await service.CreateSubjectAsync(
+            new CreateSubjectRequest(
+                "PRN223",
+                "Razor Pages",
+                null,
+                [teacherOneId],
+                null));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Select a header teacher from the assigned teachers.", result.ErrorMessage);
+        Assert.Empty(await context.Subjects.ToListAsync());
+        Assert.Empty(await context.TeacherSubjects.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateSubjectAsync_AllowsCreationWithoutAssignments()
+    {
+        await using var context = CreateContext();
+        var service = CreateService(context);
+
+        var result = await service.CreateSubjectAsync(
+            new CreateSubjectRequest(
+                "PRN225",
+                "Razor Pages",
+                null,
+                [],
+                null));
+
+        Assert.True(result.Succeeded);
+        var subject = await context.Subjects.SingleAsync(item => item.SubjectCode == "PRN225");
+        Assert.Equal("Razor Pages", subject.SubjectName);
+        Assert.Empty(await context.TeacherSubjects.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateSubjectAsync_AutoAssignsHeaderTeacherWhenCheckboxIsMissing()
+    {
+        await using var context = CreateContext();
+        var teacherOneId = Guid.NewGuid();
+        var teacherTwoId = Guid.NewGuid();
+
+        context.Teachers.AddRange(
+            new Teacher
+            {
+                TeacherId = teacherOneId,
+                FullName = "Alice Nguyen",
+                Email = "alice@example.com",
+                Department = "Software"
+            },
+            new Teacher
+            {
+                TeacherId = teacherTwoId,
+                FullName = "Bob Tran",
+                Email = "bob@example.com",
+                Department = "AI"
+            });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        var result = await service.CreateSubjectAsync(
+            new CreateSubjectRequest(
+                "PRN224",
+                "Razor Pages",
+                null,
+                [teacherOneId],
+                teacherTwoId));
+
+        Assert.True(result.Succeeded);
+        var subject = await context.Subjects.SingleAsync(item => item.SubjectCode == "PRN224");
+        Assert.Equal(2, await context.TeacherSubjects.CountAsync(item => item.SubjectId == subject.SubjectId));
+        Assert.Equal(1, await context.TeacherSubjects.CountAsync(item => item.SubjectId == subject.SubjectId && item.IsHeadOfDepartment));
+        Assert.Equal(teacherTwoId, await context.TeacherSubjects
+            .Where(item => item.SubjectId == subject.SubjectId && item.IsHeadOfDepartment)
+            .Select(item => item.TeacherId)
+            .SingleAsync());
     }
 
     [Fact]

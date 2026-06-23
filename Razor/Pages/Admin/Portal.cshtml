@@ -130,7 +130,7 @@
                 <div class="admin-blue-create-heading">
                     <div>
                         <h2 id="create-subject-title">Create Subject</h2>
-                        <p>Add an academic subject and assign available teachers at the same time.</p>
+                        <p>Add an academic subject with optional teacher assignments and an optional header teacher.</p>
                     </div>
                     <span class="admin-blue-role-badge student">Subject</span>
                 </div>
@@ -156,12 +156,28 @@
                             <input asp-for="NewSubject.Description" autocomplete="off" placeholder="Optional subject description" />
                             <span asp-validation-for="NewSubject.Description"></span>
                         </div>
+                        <div class="admin-blue-field">
+                            <label asp-for="NewSubject.HeaderTeacherId"></label>
+                            @if (Model.Teachers.Count == 0)
+                            {
+                                <select asp-for="NewSubject.HeaderTeacherId" disabled>
+                                    <option value="">No teachers available</option>
+                                </select>
+                            }
+                            else
+                            {
+                                <select asp-for="NewSubject.HeaderTeacherId" asp-items="Model.HeaderTeacherOptions">
+                                    <option value="">Choose header teacher</option>
+                                </select>
+                            }
+                            <span asp-validation-for="NewSubject.HeaderTeacherId"></span>
+                        </div>
                     </div>
 
                     <div class="admin-blue-teacher-picker">
                         <div class="admin-blue-field-label">
                             <label asp-for="NewSubject.AssignedTeacherIds"></label>
-                            <span>Select teachers who will be assigned to this subject.</span>
+                            <span>Select teachers to assign now, or leave this empty and add them later.</span>
                         </div>
 
                         @if (Model.Teachers.Count == 0)
@@ -176,7 +192,8 @@
                                     <label class="admin-blue-teacher-option">
                                         <input type="checkbox"
                                                name="NewSubject.AssignedTeacherIds"
-                                               value="@teacher.TeacherId" />
+                                               value="@teacher.TeacherId"
+                                               @(Model.NewSubject.AssignedTeacherIds.Contains(teacher.TeacherId) ? "checked" : null) />
                                         <span>
                                             <strong>@teacher.FullName</strong>
                                             <small>@PortalModel.FormatTeacherAssignment(teacher)</small>

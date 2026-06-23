@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using ServiceLayer.DTOs;
 using ServiceLayer.Interfaces;
 
@@ -60,7 +61,8 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
                 NewSubject.SubjectCode,
                 NewSubject.SubjectName,
                 NewSubject.Description,
-                NewSubject.AssignedTeacherIds),
+                NewSubject.AssignedTeacherIds,
+                NewSubject.HeaderTeacherId),
             cancellationToken);
 
         if (!result.Succeeded)
@@ -276,7 +278,7 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
     public string FormatSubjectOption(AdminSubjectSummaryDto subject)
     {
         return subject.HasLeader
-            ? $"{subject.SubjectCode} - {subject.SubjectName} (leader: {subject.LeaderName ?? "teacher"})"
+            ? $"{subject.SubjectCode} - {subject.SubjectName} (header: {subject.LeaderName ?? "teacher"})"
             : $"{subject.SubjectCode} - {subject.SubjectName}";
     }
 
@@ -287,8 +289,8 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
             : $"{subject.AssignedTeacherCount} teachers";
 
         return subject.HasLeader
-            ? $"{teacherLabel}, leader: {subject.LeaderName ?? "teacher"}"
-            : $"{teacherLabel}, no leader";
+            ? $"{teacherLabel}, header: {subject.LeaderName ?? "teacher"}"
+            : $"{teacherLabel}, no header";
     }
 
     public static string FormatCreatedAt(DateTime? createdAt)
@@ -317,6 +319,15 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
         Teachers = await adminUserService.GetTeacherSummariesAsync(cancellationToken);
     }
 
+    public IReadOnlyList<SelectListItem> HeaderTeacherOptions =>
+        Teachers.Select(teacher => new SelectListItem
+        {
+            Value = teacher.TeacherId.ToString(),
+            Text = $"{teacher.FullName} ({FormatTeacherAssignment(teacher)})",
+            Selected = NewSubject.HeaderTeacherId == teacher.TeacherId
+        })
+            .ToList();
+
     public sealed class CreateSubjectInputModel
     {
         [Required]
@@ -334,6 +345,9 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
 
         [Display(Name = "Assigned teachers")]
         public List<Guid> AssignedTeacherIds { get; set; } = [];
+
+        [Display(Name = "Header teacher")]
+        public Guid? HeaderTeacherId { get; set; }
     }
 
     public sealed class CreateTeacherInputModel

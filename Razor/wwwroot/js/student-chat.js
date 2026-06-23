@@ -19,8 +19,9 @@
     let currentStream = null;
     let isThreadPinnedToBottom = true;
     const threadBottomThreshold = 72;
+    const streamRenderIntervalMs = 48;
+    const streamScrollIntervalMs = 120;
     const requestFrame = window.requestAnimationFrame?.bind(window) ?? ((callback) => window.setTimeout(callback, 16));
-    const cancelFrame = window.cancelAnimationFrame?.bind(window) ?? window.clearTimeout.bind(window);
 
     if (!thread || !questionInput || !subjectSelect || !submitButton) {
       return;
@@ -220,13 +221,21 @@
 
       const bubble = document.createElement('div');
       bubble.className = 'student-chat-ai-bubble analyzing';
-      bubble.append(document.createTextNode('Analyzing course materials'));
+
+      const streamingLine = document.createElement('div');
+      streamingLine.className = 'student-chat-streaming-line';
+
+      const streamText = document.createElement('span');
+      streamText.className = 'student-chat-streaming-text';
+      streamText.textContent = 'Analyzing course materials';
 
       const typing = document.createElement('span');
-      typing.className = 'student-chat-typing';
+      typing.className = 'student-chat-typing student-chat-streaming-typing';
       typing.setAttribute('aria-hidden', 'true');
       typing.append(document.createElement('span'), document.createElement('span'), document.createElement('span'));
-      bubble.append(typing);
+
+      streamingLine.append(streamText, typing);
+      bubble.append(streamingLine);
 
       const citations = document.createElement('div');
       citations.className = 'student-chat-citations student-chat-message-citations';
@@ -242,7 +251,10 @@
         answer: '',
         active: true,
         renderHandle: null,
-        renderQueued: false
+        renderQueued: false,
+        lastRenderAt: 0,
+        lastScrollAt: 0,
+        streamText
       };
     }
 
@@ -298,20 +310,24 @@
         return;
       }
 
-      state.renderQueued = true;
-      state.renderHandle = requestFrame(() => {
-        state.renderQueued = false;
-        state.renderHandle = null;
+      var now = nowMs();
+      var delay = Math.max(0, streamRenderIntervalMs - (now - state.lastRenderAt));
 
+      if (delay === 0) {
+        renderStreamingAnswer(state);
+        return;
+      }
+
+      state.renderQueued = true;
+      state.renderHandle = window.setTimeout(() => {
+        state.renderHandle = null;
         if (!state.active) {
+          state.renderQueued = false;
           return;
         }
 
-        renderStreamingAnswer(state.bubble, state.answer);
-        if (isThreadPinnedToBottom) {
-          scrollThreadToBottom();
-        }
-      });
+        renderStreamingAnswer(state);
+      }, delay);
     }
 
     function cancelScheduledRender(state) {
@@ -319,7 +335,7 @@
         return;
       }
 
-      cancelFrame(state.renderHandle);
+      window.clearTimeout(state.renderHandle);
       state.renderQueued = false;
       state.renderHandle = null;
     }
@@ -351,14 +367,22 @@
       thread.scrollTop = thread.scrollHeight;
     }
 
-    function renderStreamingAnswer(bubble, text) {
-      bubble.className = 'student-chat-ai-bubble';
-      bubble.dataset.studentChatMarkdownSource = String(text ?? '');
-      bubble.replaceChildren();
+    function renderStreamingAnswer(state, forceScroll = false) {
+      if (!state?.bubble) {
+        return;
+      }
 
-      const paragraph = document.createElement('p');
-      paragraph.textContent = String(text ?? '');
-      bubble.append(paragraph);
+      state.renderQueued = false;
+      state.lastRenderAt = nowMs();
+      state.bubble.dataset.studentChatMarkdownSource = String(state.answer ?? '');
+      if (state.streamText) {
+        state.streamText.textContent = String(state.answer ?? '');
+      }
+
+      if ((forceScroll || isThreadPinnedToBottom) && nowMs() - state.lastScrollAt >= streamScrollIntervalMs) {
+        state.lastScrollAt = nowMs();
+        scrollThreadToBottom(forceScroll);
+      }
     }
 
     function renderMarkdownAnswer(bubble, text, isError = false) {
@@ -782,6 +806,10 @@
 
       const pascalName = camelName.charAt(0).toUpperCase() + camelName.slice(1);
       return source[camelName] ?? source[pascalName];
+    }
+
+    function nowMs() {
+      return window.performance?.now?.() ?? Date.now();
     }
   });
 }());

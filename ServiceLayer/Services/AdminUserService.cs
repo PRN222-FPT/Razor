@@ -159,6 +159,7 @@ public sealed class AdminUserService(
             ? null
             : request.Description.Trim();
         var assignedTeacherIds = NormalizeTeacherIds(request.AssignedTeacherIds);
+        var headerTeacherId = request.HeaderTeacherId;
 
         if (string.IsNullOrWhiteSpace(subjectCode))
         {
@@ -177,6 +178,11 @@ public sealed class AdminUserService(
         if (subjectCodeExists)
         {
             return CreateSubjectResult.Failure("A subject with this code already exists.");
+        }
+
+        if (headerTeacherId.HasValue && !assignedTeacherIds.Contains(headerTeacherId.Value))
+        {
+            assignedTeacherIds.Add(headerTeacherId.Value);
         }
 
         if (assignedTeacherIds.Count > 0)
@@ -214,7 +220,8 @@ public sealed class AdminUserService(
                         TeacherSubjectId = Guid.NewGuid(),
                         TeacherId = teacherId,
                         SubjectId = subject.SubjectId,
-                        IsHeadOfDepartment = false
+                        IsHeadOfDepartment = headerTeacherId.HasValue
+                            && teacherId == headerTeacherId.Value
                     },
                     cancellationToken);
             }
@@ -227,6 +234,20 @@ public sealed class AdminUserService(
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "subjects_subject_code_key"))
         {
             return CreateSubjectResult.Failure("A subject with this code already exists.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_one_leader_per_subject"))
+        {
+            return CreateSubjectResult.Failure("The selected subject already has a header teacher.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_teacher_id_key"))
+        {
+            return CreateSubjectResult.Failure(
+                "The database still has the old one-subject-per-teacher constraint. Restart the app so the compatibility update can run, then try again.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_subject_id_key"))
+        {
+            return CreateSubjectResult.Failure(
+                "The database still has the old one-teacher-per-subject constraint. Restart the app so the compatibility update can run, then try again.");
         }
 
         return CreateSubjectResult.Success(subject.SubjectId);
@@ -466,6 +487,11 @@ public sealed class AdminUserService(
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_one_leader_per_subject"))
         {
             return CreateTeacherResult.Failure("The selected subject already has a leader.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_teacher_id_key"))
+        {
+            return CreateTeacherResult.Failure(
+                "The database still has the old one-subject-per-teacher constraint. Restart the app so the compatibility update can run, then try again.");
         }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_subject_id_key"))
         {
@@ -844,7 +870,7 @@ public sealed class AdminUserService(
             : normalizedRole;
     }
 
-    private static IReadOnlyList<Guid> NormalizeTeacherIds(IReadOnlyList<Guid>? teacherIds)
+    private static List<Guid> NormalizeTeacherIds(IReadOnlyList<Guid>? teacherIds)
     {
         if (teacherIds is null || teacherIds.Count == 0)
         {
