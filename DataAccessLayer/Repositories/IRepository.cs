@@ -2,19 +2,22 @@ using System.Linq.Expressions;
 
 namespace DataAccessLayer.Repositories;
 
-public interface IRepository<T> where T : class
+public interface IRepository<TEntity>
+    where TEntity : class
 {
-    Task<IEnumerable<T>> GetAllAsync();
+    Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
 
-    Task<T?> GetByIdAsync(int id);
+    Task<TEntity?> GetByIdAsync(object id, CancellationToken cancellationToken = default);
 
-    Task AddAsync(T entity);
+    Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);
 
-    void Update(T entity);
+    void Update(TEntity entity);
 
-    void Delete(T entity);
+    void Delete(TEntity entity);
 
-    Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+    Task<IReadOnlyList<TEntity>> FindAsync(
+        Expression<Func<TEntity, bool>> predicate,
+        CancellationToken cancellationToken = default);
 
-    IQueryable<T> Query();
+    IQueryable<TEntity> Query();
 }

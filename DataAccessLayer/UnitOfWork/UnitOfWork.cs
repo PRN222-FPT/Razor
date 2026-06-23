@@ -1,47 +1,34 @@
-using DataAccessLayer.Entities;
 using DataAccessLayer.Repositories;
 
 namespace DataAccessLayer.UnitOfWork;
 
-public class UnitOfWork : IUnitOfWork
+public sealed class UnitOfWork(AppDbContext dbContext) : IUnitOfWork
 {
-    private readonly AppDbContext _context;
-    private IRepository<Category>? _categories;
-    private IRepository<Product>? _products;
-    private bool _disposed;
+    private readonly Dictionary<Type, object> _repositories = [];
 
-    public UnitOfWork(AppDbContext context)
+    public IRepository<TEntity> Repository<TEntity>()
+        where TEntity : class
     {
-        _context = context;
-    }
+        var entityType = typeof(TEntity);
 
-    public IRepository<Category> Categories
-        => _categories ??= new Repository<Category>(_context);
-
-    public IRepository<Product> Products
-        => _products ??= new Repository<Product>(_context);
-
-    public async Task<int> SaveChangesAsync()
-        => await _context.SaveChangesAsync();
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed)
+        if (_repositories.TryGetValue(entityType, out var repository))
         {
-            return;
+            return (IRepository<TEntity>)repository;
         }
 
-        if (disposing)
-        {
-            _context.Dispose();
-        }
+        var newRepository = new Repository<TEntity>(dbContext);
+        _repositories[entityType] = newRepository;
 
-        _disposed = true;
+        return newRepository;
     }
 
-    public void Dispose()
+    public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        Dispose(true);
-        GC.SuppressFinalize(this);
+        return dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return dbContext.DisposeAsync();
     }
 }
