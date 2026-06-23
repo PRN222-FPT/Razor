@@ -45,7 +45,8 @@ public sealed record CreateSubjectRequest(
     string? SubjectCode,
     string? SubjectName,
     string? Description,
-    IReadOnlyList<Guid> AssignedTeacherIds);
+    IReadOnlyList<Guid> AssignedTeacherIds,
+    Guid? HeaderTeacherId);
 
 public sealed record CreateSubjectResult(
     bool Succeeded,

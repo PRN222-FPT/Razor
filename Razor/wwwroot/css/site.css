@@ -3483,7 +3483,7 @@ th {
 }
 
 .admin-blue-form-grid.subject {
-  grid-template-columns: minmax(140px, 0.7fr) minmax(220px, 1fr) minmax(260px, 1.4fr);
+  grid-template-columns: minmax(140px, 0.55fr) minmax(220px, 0.9fr) minmax(280px, 1.35fr) minmax(220px, 0.8fr);
 }
 
 .admin-blue-form-grid.import {
@@ -5008,6 +5008,7 @@ th {
   gap: 24px;
   overflow-y: auto;
   padding: 40px;
+  overflow-anchor: none;
   overscroll-behavior: contain;
   scroll-behavior: auto;
   scrollbar-gutter: stable;
@@ -5250,13 +5251,28 @@ th {
 }
 
 .student-chat-ai-bubble.analyzing {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
   color: #5e6c84;
   font-size: 14px;
   font-style: italic;
   padding: 12px 20px;
+}
+
+.student-chat-streaming-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.student-chat-streaming-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.student-chat-streaming-typing {
+  flex: 0 0 auto;
 }
 
 .student-chat-ai-bubble.error {

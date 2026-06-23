@@ -55,6 +55,12 @@ public sealed class ChatModel(
             return Forbid();
         }
 
+        if (!SelectedSessionId.HasValue && !DraftSession)
+        {
+            var sessionId = await chatService.StartNewSessionAsync(userId.Value, cancellationToken);
+            SelectedSessionId = sessionId;
+        }
+
         await LoadPageAsync(userId.Value, SelectedSessionId, DraftSession, cancellationToken);
 
         return Page();
@@ -124,7 +130,7 @@ public sealed class ChatModel(
             return Forbid();
         }
 
-        return RedirectToPage("/Student/Chat", new { view = ChatView, draft = true });
+        return RedirectToPage("/Student/Chat", new { view = ChatView });
     }
 
     public async Task<IActionResult> OnPostAskAsync(CancellationToken cancellationToken)

@@ -15,6 +15,7 @@ public sealed class SmtpStudentCredentialEmailSender(
         StudentCredentialEmailRequest request,
         CancellationToken cancellationToken = default)
     {
+        ValidateConfiguration();
         using var message = BuildMessage(request);
         using var client = BuildClient();
 
@@ -69,5 +70,18 @@ public sealed class SmtpStudentCredentialEmailSender(
             Regards,
             FPT UniRAG
             """;
+    }
+
+    private void ValidateConfiguration()
+    {
+        if (string.IsNullOrWhiteSpace(_options.Host))
+        {
+            throw new InvalidOperationException("StudentCredentialEmail:Host must be configured before sending student credentials.");
+        }
+
+        if (string.IsNullOrWhiteSpace(_options.SenderEmail))
+        {
+            throw new InvalidOperationException("StudentCredentialEmail:SenderEmail must be configured before sending student credentials.");
+        }
     }
 }

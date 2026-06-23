@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Data.Common;
+using System.Net.Sockets;
 using Razor.Hubs;
 using Razor.Infrastructure;
 using Razor.Middlewares;
@@ -140,16 +142,6 @@ builder.Services.PostConfigure<StudentCredentialEmailOptions>(options =>
     options.Subject = string.IsNullOrWhiteSpace(options.Subject)
         ? "Your FPT UniRAG student account"
         : options.Subject.Trim();
-
-    if (string.IsNullOrWhiteSpace(options.Host))
-    {
-        throw new InvalidOperationException("StudentCredentialEmail:Host must be configured.");
-    }
-
-    if (string.IsNullOrWhiteSpace(options.SenderEmail))
-    {
-        throw new InvalidOperationException("StudentCredentialEmail:SenderEmail must be configured.");
-    }
 });
 builder.Services.PostConfigure<GeminiOptions>(options =>
 {
@@ -242,10 +234,7 @@ builder.Services.AddHostedService<DocumentProcessingWorker>();
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    await ApplyDatabaseCompatibilityAsync(app);
-}
+await ApplyDatabaseCompatibilityAsync(app);
 await SeedDefaultAdminAsync(app);
 await SeedDefaultStudentAsync(app);
 
@@ -275,52 +264,65 @@ app.Run();
 
 static async Task SeedDefaultAdminAsync(WebApplication app)
 {
-    try
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var seeder = scope.ServiceProvider.GetRequiredService<IDefaultAdminSeeder>();
-
-        await seeder.SeedAsync();
-    }
-    catch (Exception ex) when (app.Environment.IsDevelopment())
-    {
-        app.Logger.LogWarning(
-            ex,
-            "Default admin seeding was skipped because the development database is not available.");
-    }
+    await RunDatabaseStartupTaskAsync(
+        app,
+        "Default admin seeding",
+        async scope =>
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<IDefaultAdminSeeder>();
+            await seeder.SeedAsync();
+        });
 }
 
 static async Task SeedDefaultStudentAsync(WebApplication app)
 {
-    try
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var seeder = scope.ServiceProvider.GetRequiredService<IDefaultStudentSeeder>();
-
-        await seeder.SeedAsync();
-    }
-    catch (Exception ex) when (app.Environment.IsDevelopment())
-    {
-        app.Logger.LogWarning(
-            ex,
-            "Default student seeding was skipped because the development database is not available.");
-    }
+    await RunDatabaseStartupTaskAsync(
+        app,
+        "Default student seeding",
+        async scope =>
+        {
+            var seeder = scope.ServiceProvider.GetRequiredService<IDefaultStudentSeeder>();
+            await seeder.SeedAsync();
+        });
 }
 
 static async Task ApplyDatabaseCompatibilityAsync(WebApplication app)
 {
+    await RunDatabaseStartupTaskAsync(
+        app,
+        "Database compatibility updates",
+        async scope =>
+        {
+            var compatibilityService = scope.ServiceProvider.GetRequiredService<IDatabaseCompatibilityService>();
+            await compatibilityService.ApplyAsync();
+        });
+}
+
+static async Task RunDatabaseStartupTaskAsync(
+    WebApplication app,
+    string operationName,
+    Func<IServiceScope, Task> operation)
+{
     try
     {
         await using var scope = app.Services.CreateAsyncScope();
-        var compatibilityService = scope.ServiceProvider.GetRequiredService<IDatabaseCompatibilityService>();
-
-        await compatibilityService.ApplyAsync();
+        await operation(scope);
     }
-    catch (Exception ex)
+    catch (Exception ex) when (IsDatabaseUnavailable(ex))
     {
         app.Logger.LogWarning(
             ex,
-            "Database compatibility updates were skipped because the development database is not available.");
+            "{OperationName} was skipped because the database is not available.",
+            operationName);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(
+            ex,
+            "{OperationName} failed during startup.",
+            operationName);
+
+        throw;
     }
 }
 
@@ -328,4 +330,17 @@ static bool IsHtmlRequest(HttpRequest request)
 {
     return request.Headers.Accept.Any(
         value => value?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true);
+}
+
+static bool IsDatabaseUnavailable(Exception exception)
+{
+    for (var current = exception; current is not null; current = current.InnerException)
+    {
+        if (current is DbException or SocketException or TimeoutException)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }

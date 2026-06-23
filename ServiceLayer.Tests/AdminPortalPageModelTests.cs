@@ -1,4 +1,9 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Razor.Pages.Admin;
 using ServiceLayer.DTOs;
 using ServiceLayer.Interfaces;
@@ -24,11 +29,78 @@ public sealed class AdminPortalPageModelTests
         Assert.Equal(1, service.ResetAccountPasswordCalls);
     }
 
+    [Fact]
+    public async Task OnPostCreateSubjectAsync_ForwardsHeaderTeacherSelection()
+    {
+        var service = new RecordingAdminUserService
+        {
+            CreateSubjectResponse = CreateSubjectResult.Success(Guid.NewGuid())
+        };
+        var model = new PortalModel(service)
+        {
+            NewSubject =
+            {
+                SubjectCode = "PRN222",
+                SubjectName = "Razor Pages",
+                Description = "Web development",
+                AssignedTeacherIds = [Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.Parse("22222222-2222-2222-2222-222222222222")],
+                HeaderTeacherId = Guid.Parse("22222222-2222-2222-2222-222222222222")
+            }
+        };
+        model.PageContext = CreatePageContext();
+
+        var result = await model.OnPostCreateSubjectAsync(CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("/Admin/Portal", redirect.PageName);
+        Assert.Equal("PRN222", service.LastCreateSubjectRequest?.SubjectCode);
+        Assert.Equal("Razor Pages", service.LastCreateSubjectRequest?.SubjectName);
+        Assert.Equal("Web development", service.LastCreateSubjectRequest?.Description);
+        Assert.Equal(2, service.LastCreateSubjectRequest?.AssignedTeacherIds.Count);
+        Assert.Equal(Guid.Parse("22222222-2222-2222-2222-222222222222"), service.LastCreateSubjectRequest?.HeaderTeacherId);
+        Assert.Equal(1, service.CreateSubjectCalls);
+    }
+
+    [Fact]
+    public async Task OnPostCreateSubjectAsync_AllowsEmptyAssignments()
+    {
+        var service = new RecordingAdminUserService
+        {
+            CreateSubjectResponse = CreateSubjectResult.Success(Guid.NewGuid())
+        };
+        var model = new PortalModel(service)
+        {
+            NewSubject =
+            {
+                SubjectCode = "PRN226",
+                SubjectName = "Razor Pages",
+                Description = null,
+                AssignedTeacherIds = [],
+                HeaderTeacherId = null
+            }
+        };
+        model.PageContext = CreatePageContext();
+
+        var result = await model.OnPostCreateSubjectAsync(CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("/Admin/Portal", redirect.PageName);
+        Assert.Equal("PRN226", service.LastCreateSubjectRequest?.SubjectCode);
+        Assert.Empty(service.LastCreateSubjectRequest?.AssignedTeacherIds ?? []);
+        Assert.Null(service.LastCreateSubjectRequest?.HeaderTeacherId);
+    }
+
     private sealed class RecordingAdminUserService : IAdminUserService
     {
         public int ResetAccountPasswordCalls { get; private set; }
 
+        public int CreateSubjectCalls { get; private set; }
+
+        public CreateSubjectRequest? LastCreateSubjectRequest { get; private set; }
+
         public UpdateAccountStatusResult ResetAccountPasswordResult { get; set; } = UpdateAccountStatusResult.Success();
+
+        public CreateSubjectResult CreateSubjectResponse { get; set; } = CreateSubjectResult.Failure("Not implemented.");
 
         public Task<AdminUserManagementDto> GetUserManagementAsync(
             string? searchTerm,
@@ -55,7 +127,9 @@ public sealed class AdminPortalPageModelTests
             CreateSubjectRequest request,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(CreateSubjectResult.Failure("Not implemented."));
+            CreateSubjectCalls++;
+            LastCreateSubjectRequest = request;
+            return Task.FromResult(CreateSubjectResponse);
         }
 
         public Task<DeleteSubjectResult> DeleteSubjectAsync(
@@ -100,5 +174,22 @@ public sealed class AdminPortalPageModelTests
         {
             return Task.FromResult(ImportStudentsResult.Failure("Not implemented."));
         }
+    }
+
+    private static PageContext CreatePageContext()
+    {
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddMvcCore()
+            .AddDataAnnotations()
+            .Services
+            .BuildServiceProvider();
+
+        var httpContext = new DefaultHttpContext
+        {
+            RequestServices = services
+        };
+
+        return new PageContext(new ActionContext(httpContext, new RouteData(), new ActionDescriptor()));
     }
 }
