@@ -43,6 +43,8 @@ Desktop.ini
 appsettings.local.json
 secrets.json
 .microsoft.dotnet.secret.json
+Razor/App_Data/DataProtectionKeys/
+Razor/App_Data/tessdata/*.traineddata
 
 # CodeGraph and tool analysis directories
 .codegraph/

@@ -1,0 +1,129 @@
+@page "{documentId:guid}"
+@model Razor.Pages.Teacher.Documents.DetailsModel
+@{
+    ViewData["Title"] = "Teacher: Document Chunks";
+    ViewData["HideAppChrome"] = true;
+    ViewData["BodyClass"] = "teacher-stitch-body";
+
+    var document = Model.Document!;
+    var statusClass = Model.GetStatusClass();
+}
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+}
+
+<header class="teacher-stitch-topbar">
+    <div class="teacher-stitch-brand">FPT UniRAG</div>
+    <nav class="teacher-stitch-role-nav" aria-label="Teacher views">
+        <a href="/Teacher/Dashboard#teacher-overview">Teacher</a>
+        <a class="active" asp-page="/Teacher/Documents/Index">Documents</a>
+    </nav>
+    <div class="teacher-stitch-top-actions">
+        <a asp-page="/Account/ChangePassword" class="teacher-stitch-account-button teacher-stitch-account-button-secondary">
+            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+            Change Password
+        </a>
+        <a asp-page="/Account/ForgotPassword" class="teacher-stitch-account-button teacher-stitch-account-button-secondary">
+            <span class="material-symbols-outlined" aria-hidden="true">key</span>
+            Forgot Password
+        </a>
+        <form method="post" asp-page="/Index" asp-page-handler="Logout" class="teacher-stitch-logout-form">
+            <button type="submit" class="teacher-stitch-logout-button">
+                <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+                Logout
+            </button>
+        </form>
+    </div>
+</header>
+
+<div class="teacher-stitch-shell">
+    <aside class="teacher-stitch-sidebar" aria-label="Teacher navigation">
+        <div class="teacher-stitch-sidebar-header">
+            <div class="teacher-stitch-school-icon">
+                <span class="material-symbols-outlined" aria-hidden="true">school</span>
+            </div>
+            <div>
+                <h2>FPT Academic</h2>
+                <p>Management Portal</p>
+            </div>
+        </div>
+
+        <nav class="teacher-stitch-menu" aria-label="Teacher navigation">
+            <a href="/Teacher/Dashboard#teacher-overview"><span class="material-symbols-outlined" aria-hidden="true">school</span>Teacher</a>
+            <a class="active" asp-page="/Teacher/Documents/Index"><span class="material-symbols-outlined" aria-hidden="true">folder_open</span>Documents</a>
+            <a asp-page="/Account/ChangePassword"><span class="material-symbols-outlined" aria-hidden="true">lock</span>Change Password</a>
+            <a asp-page="/Account/ForgotPassword"><span class="material-symbols-outlined" aria-hidden="true">key</span>Forgot Password</a>
+        </nav>
+    </aside>
+
+    <main class="teacher-stitch-main">
+        <div class="teacher-stitch-page-title">
+            <div>
+                <h1>@document.Title</h1>
+                <p>@Model.FormatSubject()</p>
+            </div>
+        </div>
+
+        <section class="teacher-stitch-analytics" aria-label="Document details">
+            <article class="teacher-stitch-glass-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Status</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">sync</span>
+                </div>
+                <span class="teacher-stitch-status @statusClass">@Model.FormatStatus()</span>
+                @if (!string.IsNullOrWhiteSpace(document.ErrorMessage))
+                {
+                    <p>@document.ErrorMessage</p>
+                }
+            </article>
+
+            <article class="teacher-stitch-glass-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Chunks</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">segment</span>
+                </div>
+                <strong class="teacher-stitch-big-number">@document.Chunks.Count.ToString("N0")</strong>
+                <p>Indexed content segments</p>
+            </article>
+
+            <article class="teacher-stitch-glass-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Chapter</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+                </div>
+                <strong>@document.ChapterTitle</strong>
+                <p>@Model.FormatDocumentDate(document.CreatedAt)</p>
+            </article>
+        </section>
+
+        <section class="teacher-stitch-glass-card teacher-stitch-documents" aria-labelledby="teacher-chunks-title">
+            <div class="teacher-stitch-table-header">
+                <div>
+                    <h2 id="teacher-chunks-title">Parsed Chunks</h2>
+                    <span>@document.Chunks.Count.ToString("N0") TOTAL</span>
+                </div>
+            </div>
+
+            @if (document.Chunks.Count == 0)
+            {
+                <div class="teacher-stitch-empty">No chunks have been created for this document yet.</div>
+            }
+            else
+            {
+                <div class="teacher-document-chunks">
+                    @foreach (var chunk in document.Chunks)
+                    {
+                        <article class="teacher-document-chunk">
+                            <header>
+                                <strong>Chunk @((chunk.ChunkIndex + 1).ToString("N0"))</strong>
+                                <span>@Model.FormatDocumentDate(chunk.CreatedAt)</span>
+                            </header>
+                            <p>@chunk.Content</p>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    </main>
+</div>

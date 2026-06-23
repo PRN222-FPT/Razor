@@ -1,0 +1,282 @@
+@page
+@model Razor.Pages.Teacher.DashboardModel
+@{
+    ViewData["Title"] = "Teacher: Document Management";
+    ViewData["HideAppChrome"] = true;
+    ViewData["BodyClass"] = "teacher-stitch-body";
+
+    var hasUploadSubjects = Model.Dashboard.Subjects.Count > 0;
+    var storagePercent = Model.GetStoragePercent();
+}
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet" />
+}
+
+<header class="teacher-stitch-topbar">
+    <div class="teacher-stitch-brand">FPT UniRAG</div>
+    <nav class="teacher-stitch-role-nav" aria-label="Teacher views">
+        <a class="active" href="#teacher-overview">Teacher</a>
+        <a asp-page="/Teacher/Documents/Index">Documents</a>
+    </nav>
+    <div class="teacher-stitch-top-actions">
+        <a asp-page="/Account/ChangePassword" class="teacher-stitch-account-button">
+            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+            Change Password
+        </a>
+        <a asp-page="/Account/ForgotPassword" class="teacher-stitch-account-button teacher-stitch-account-button-secondary">
+            <span class="material-symbols-outlined" aria-hidden="true">key</span>
+            Forgot Password
+        </a>
+        <form method="post" asp-page="/Index" asp-page-handler="Logout" class="teacher-stitch-logout-form">
+            <button type="submit" class="teacher-stitch-logout-button">
+                <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+                Logout
+            </button>
+        </form>
+    </div>
+</header>
+
+<div class="teacher-stitch-shell">
+    <aside class="teacher-stitch-sidebar" aria-label="Teacher navigation">
+        <div class="teacher-stitch-sidebar-header">
+            <div class="teacher-stitch-school-icon">
+                <span class="material-symbols-outlined" aria-hidden="true">school</span>
+            </div>
+            <div>
+                <h2>FPT Academic</h2>
+                <p>Management Portal</p>
+            </div>
+        </div>
+
+        <nav class="teacher-stitch-menu" aria-label="Teacher navigation">
+            <a class="active" href="#teacher-overview"><span class="material-symbols-outlined" aria-hidden="true">school</span>Teacher</a>
+            <a asp-page="/Teacher/Documents/Index"><span class="material-symbols-outlined" aria-hidden="true">folder_open</span>Documents</a>
+            <a asp-page="/Account/ChangePassword"><span class="material-symbols-outlined" aria-hidden="true">lock</span>Change Password</a>
+            <a asp-page="/Account/ForgotPassword"><span class="material-symbols-outlined" aria-hidden="true">key</span>Forgot Password</a>
+        </nav>
+    </aside>
+
+    <main class="teacher-stitch-main">
+        <div id="teacher-overview" class="teacher-stitch-page-title">
+            <div>
+                <h1>Document Management</h1>
+                <p>Centralized repository for AI-assisted teaching materials.</p>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+        {
+            <div class="teacher-stitch-alert success" role="status">@Model.SuccessMessage</div>
+        }
+
+        @if (!hasUploadSubjects)
+        {
+            <div class="teacher-stitch-alert warning" role="alert">
+                You do not have any assigned subjects yet. Contact an administrator before uploading documents.
+            </div>
+        }
+
+        <section class="teacher-stitch-analytics" aria-label="Document analytics">
+            <article class="teacher-stitch-glass-card teacher-stitch-storage-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Storage Utilization</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">cloud_done</span>
+                </div>
+                <div class="teacher-stitch-storage-value">
+                    <strong>@storagePercent</strong>
+                    <span>% storage used</span>
+                </div>
+                <div class="teacher-stitch-progress"><span style="width: @storagePercent%"></span></div>
+                <p>@Model.FormatStorageUsage()</p>
+            </article>
+
+            <article class="teacher-stitch-glass-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Total Documents</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">description</span>
+                </div>
+                <strong class="teacher-stitch-big-number">@Model.Dashboard.TotalDocuments.ToString("N0")</strong>
+                <p>@(Model.Dashboard.TotalDocuments == 0 ? "No documents uploaded yet" : "Documents uploaded by you")</p>
+            </article>
+
+            <article class="teacher-stitch-glass-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Indexing Queue</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">hourglass_empty</span>
+                </div>
+                <div class="teacher-stitch-queue-value">
+                    <strong class="teacher-stitch-big-number" data-teacher-queue-count>@Model.Dashboard.QueuedDocuments.ToString("N0")</strong>
+                </div>
+                <p>@(Model.Dashboard.QueuedDocuments == 0 ? "No documents are waiting for indexing" : "Documents waiting for processing")</p>
+            </article>
+        </section>
+
+        <form id="teacher-upload-form" method="post" asp-page-handler="Upload" enctype="multipart/form-data" class="teacher-stitch-controls-grid">
+            <div class="teacher-stitch-filter-column">
+                <article id="teacher-subjects" class="teacher-stitch-glass-card teacher-stitch-filter-card">
+                    <h3><span class="material-symbols-outlined" aria-hidden="true">filter_list</span>Filter Context</h3>
+                    <div asp-validation-summary="ModelOnly" class="teacher-stitch-validation-summary"></div>
+                    <label class="teacher-stitch-select-wrap">
+                        <select asp-for="UploadDocument.SubjectId" disabled="@(!hasUploadSubjects)">
+                            <option value="">Choose subject</option>
+                            @foreach (var subject in Model.Dashboard.Subjects)
+                            {
+                                <option value="@subject.SubjectId">@subject.SubjectCode: @subject.SubjectName</option>
+                            }
+                        </select>
+                        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                    </label>
+                    <span asp-validation-for="UploadDocument.SubjectId" class="teacher-stitch-field-error"></span>
+                    <label class="teacher-stitch-text-input">
+                        <span>Title</span>
+                        <input asp-for="UploadDocument.Title" autocomplete="off" placeholder="Optional document title" disabled="@(!hasUploadSubjects)" />
+                    </label>
+                    <span asp-validation-for="UploadDocument.Title" class="teacher-stitch-field-error"></span>
+                    <label class="teacher-stitch-text-input">
+                        <span>Chapter</span>
+                        <input asp-for="UploadDocument.ChapterTitle" autocomplete="off" placeholder="General" disabled="@(!hasUploadSubjects)" />
+                    </label>
+                    <span asp-validation-for="UploadDocument.ChapterTitle" class="teacher-stitch-field-error"></span>
+                    <p>Select the subject and optional chapter for the document. Uploads are queued for background processing.</p>
+                </article>
+            </div>
+
+            <article class="teacher-stitch-glass-card teacher-stitch-upload-card" aria-labelledby="teacher-upload-title">
+                <div class="teacher-stitch-card-header">
+                    <span id="teacher-upload-title">Upload File</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">cloud_upload</span>
+                </div>
+                <p>Choose a file, then upload it for processing. PDF or DOCX only. Max file size: @Model.MaxUploadSizeLabel.</p>
+                <div class="teacher-stitch-upload-picker">
+                    <input asp-for="UploadDocument.File"
+                           type="file"
+                           accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                           class="teacher-stitch-file-input"
+                           data-upload-file-input
+                           disabled="@(!hasUploadSubjects)" />
+                    <label class="teacher-stitch-file-button"
+                           for="UploadDocument_File"
+                           data-upload-file-trigger
+                           role="button"
+                           tabindex="0"
+                           aria-disabled="@((!hasUploadSubjects).ToString().ToLowerInvariant())">
+                        Browse Files
+                    </label>
+                    <span class="teacher-stitch-file-name" data-upload-file-name>No file selected</span>
+                </div>
+                <span asp-validation-for="UploadDocument.File" class="teacher-stitch-field-error"></span>
+                <div class="teacher-stitch-upload-actions">
+                    <button class="teacher-stitch-primary-button" type="submit" disabled="@(!hasUploadSubjects)">
+                        Upload
+                    </button>
+                </div>
+            </article>
+        </form>
+
+        <section id="teacher-documents" class="teacher-stitch-glass-card teacher-stitch-documents" aria-labelledby="teacher-documents-title">
+            <div class="teacher-stitch-table-header">
+                <div>
+                    <h2 id="teacher-documents-title">Recent Documents</h2>
+                    <span>@Model.Dashboard.TotalDocuments.ToString("N0") TOTAL</span>
+                </div>
+                <a class="teacher-stitch-view-all" asp-page="/Teacher/Documents/Index">
+                    View All <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
+                </a>
+            </div>
+
+            <div class="teacher-stitch-table-wrap">
+                <table class="teacher-stitch-table">
+                    <thead>
+                        <tr>
+                            <th>Document Title</th>
+                            <th>Subject</th>
+                            <th>Upload Date</th>
+                            <th>Status</th>
+                            <th class="teacher-stitch-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Dashboard.RecentDocuments.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="teacher-stitch-empty">No documents have been uploaded yet.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var document in Model.Dashboard.RecentDocuments)
+                            {
+                                var statusClass = Model.GetStatusClass(document);
+                                <tr data-document-row="@document.DocumentId" data-document-status="@document.Status.ToLowerInvariant()">
+                                    <td>
+                                        <div class="teacher-stitch-file-cell">
+                                            <span class="teacher-stitch-file-icon @Model.GetFileIconClass(document)">
+                                                <span class="material-symbols-outlined" aria-hidden="true">@Model.GetFileIconName(document)</span>
+                                            </span>
+                                            <strong>@document.Title</strong>
+                                        </div>
+                                    </td>
+                                    <td>@Model.FormatSubject(document)</td>
+                                    <td>@Model.FormatDocumentDate(document.CreatedAt)</td>
+                                    <td>
+                                        <span class="teacher-stitch-status @statusClass" data-document-status-badge>
+                                            @if (statusClass == "indexing")
+                                            {
+                                                <span class="material-symbols-outlined" aria-hidden="true" data-document-status-icon>sync</span>
+                                            }
+                                            else
+                                            {
+                                                <i data-document-status-icon></i>
+                                            }
+                                            <span data-document-status-label>@Model.FormatStatus(document)</span>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="teacher-stitch-row-actions">
+                                            <a asp-page="/Teacher/Documents/Details"
+                                               asp-route-documentId="@document.DocumentId"
+                                               title="View parsed chunks"
+                                               class="@(document.Status.Equals("completed", StringComparison.OrdinalIgnoreCase) ? string.Empty : "disabled")"
+                                               aria-disabled="@(!document.Status.Equals("completed", StringComparison.OrdinalIgnoreCase))"
+                                               data-document-view-link>
+                                                <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                                            </a>
+                                            <form method="post"
+                                                  asp-page-handler="Delete"
+                                                  asp-route-documentId="@document.DocumentId"
+                                                  onsubmit="return confirm('Delete this document before uploading a replacement?');">
+                                                <button type="submit"
+                                                        title="@(Model.CanDelete(document) ? "Delete document" : "Only the uploading teacher can delete this document.")"
+                                                        aria-label="Delete document"
+                                                        disabled="@(!Model.CanDelete(document))">
+                                                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <footer class="teacher-stitch-pagination">
+                <span>Showing <strong>@Model.Dashboard.RecentDocuments.Count.ToString("N0")</strong> documents</span>
+                <div>
+                    <button type="button" disabled>Previous</button>
+                    <button type="button" disabled>Next</button>
+                </div>
+            </footer>
+        </section>
+    </main>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="~/js/teacher-document-processing.js" asp-append-version="true"></script>
+}

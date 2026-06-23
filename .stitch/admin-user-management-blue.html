@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User Management - FPT UniRAG Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary": "#0056B3", // University Professional Blue
+                        "on-primary": "#ffffff",
+                        "primary-container": "#E7F1FF",
+                        "on-primary-container": "#001D3D",
+                        "secondary": "#545f73",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#E2E8F0",
+                        "on-secondary-container": "#1E293B",
+                        "tertiary": "#4F46E5",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-container": "#EEF2FF",
+                        "on-tertiary-container": "#312E81",
+                        "background": "#F8FAFC",
+                        "surface": "#ffffff",
+                        "on-surface": "#0F172A",
+                        "surface-variant": "#F1F5F9",
+                        "on-surface-variant": "#64748B",
+                        "outline": "#CBD5E1",
+                        "outline-variant": "#E2E8F0",
+                        "error": "#DC2626",
+                        "on-error": "#ffffff",
+                        "error-container": "#FEF2F2",
+                        "on-error-container": "#991B1B",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#F8FAFC",
+                        "surface-container": "#F1F5F9",
+                        "surface-container-high": "#E2E8F0",
+                        "surface-container-highest": "#CBD5E1",
+                        "academic-dot": "#E2E8F0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.375rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-lg": "48px",
+                        "base": "8px",
+                        "stack-sm": "12px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "gutter": "24px",
+                        "container-max": "1440px",
+                        "stack-md": "24px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "label-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["13px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-xl": ["40px", { "lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .academic-pattern {
+            background-image: radial-gradient(var(--tw-colors-academic-dot) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+        .glass-card {
+            background-color: rgba(255, 255, 255, 1);
+            border: 1px solid var(--tw-colors-outline-variant);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+        }
+        .table-row-hover:hover {
+            background-color: #F8FAFC;
+        }
+    </style>
+</head>
+<body class="bg-background academic-pattern text-on-background min-h-screen font-body-md">
+<!-- TopNavBar -->
+<nav class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-margin-desktop h-16 bg-white border-b border-outline-variant shadow-sm">
+<div class="flex items-center gap-gutter">
+<span class="font-headline-md text-headline-md font-bold text-primary">FPT UniRAG</span>
+<div class="hidden md:flex gap-4">
+<a class="font-label-md text-label-md text-primary border-b-2 border-primary pb-1" href="#">Admin</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded" href="#">Teacher</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors px-2 py-1 rounded" href="#">Student</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 transform -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="pl-10 pr-4 py-2 rounded-lg bg-surface-container-low border border-outline-variant focus:ring-2 focus:ring-primary focus:border-primary focus:outline-none text-sm w-64" placeholder="Search users..." type="text"/>
+</div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-lg font-label-md text-label-md hover:bg-blue-700 transition-all flex items-center gap-2 shadow-sm">
+<span class="material-symbols-outlined text-sm">person_add</span>
+                Invite User
+            </button>
+<div class="flex gap-1 border-l border-outline-variant ml-2 pl-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-colors">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+<img alt="User profile" class="w-8 h-8 rounded-full border border-outline-variant" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYLp4x_epzHBZ7TYVrFKdUDrnODjUgeZy1MgNesMFr7DfeQoV7dccqar-E3sHj0sFJaeHV0LyBnxZvWj0oMXGHjkCIza8J3Tu9puNn_Payz-eoh-IR_cj52FR4EWelZnaFTDKtvDjxgDNDpGk1j0Si__bOr_k8dZviQkPPxcPC3_YvC9Pw2OD6GAne-1VlKaeGnVZMt8KgdfMO1mS-cM1-VbtDe44oP4EIU0ph2Hw1tdm4GADl4HSOdX4naDpogaArgFTOq8eu7mE"/>
+</div>
+</nav>
+<div class="flex pt-16 h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-[260px] bg-white flex flex-col border-r border-outline-variant p-4 z-40 hidden md:flex">
+<div class="mb-6">
+<h2 class="font-label-md text-label-md font-bold text-on-surface uppercase tracking-wider">Navigation</h2>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="text-on-surface-variant flex items-center gap-3 px-3 py-2 hover:bg-surface-container-low transition-all rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+                    Dashboard
+                </a>
+<a class="text-on-surface-variant flex items-center gap-3 px-3 py-2 hover:bg-surface-container-low transition-all rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="auto_stories">auto_stories</span>
+                    Subjects
+                </a>
+<a class="text-on-surface-variant flex items-center gap-3 px-3 py-2 hover:bg-surface-container-low transition-all rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="folder_open">folder_open</span>
+                    Documents
+                </a>
+<a class="bg-primary-container text-primary rounded-lg font-semibold flex items-center gap-3 px-3 py-2 font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="group">group</span>
+                    Users
+                </a>
+<a class="text-on-surface-variant flex items-center gap-3 px-3 py-2 hover:bg-surface-container-low transition-all rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="analytics">analytics</span>
+                    Analytics
+                </a>
+</nav>
+<div class="mt-auto border-t border-outline-variant pt-4 flex flex-col gap-1">
+<button class="w-full bg-surface-container-high text-on-surface-variant py-2.5 rounded-lg font-label-md text-label-md mb-2 hover:bg-outline-variant transition-colors flex justify-center items-center gap-2">
+<span class="material-symbols-outlined text-sm">add</span>
+                    New Chat
+                </button>
+<a class="text-on-surface-variant flex items-center gap-3 px-3 py-2 hover:bg-surface-container-low transition-all rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+                    Help Center
+                </a>
+<a class="text-on-surface-variant flex items-center gap-3 px-3 py-2 hover:bg-surface-container-low transition-all rounded-lg font-label-md text-label-md" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="logout">logout</span>
+                    Logout
+                </a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 ml-0 md:ml-[260px] p-margin-desktop overflow-y-auto w-full h-full">
+<div class="max-w-container-max mx-auto space-y-stack-md">
+<!-- Header -->
+<div class="flex justify-between items-end">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">User Management</h1>
+<p class="font-body-md text-on-surface-variant mt-1">Review and manage access levels for the FPT UniRAG community.</p>
+</div>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-white border border-outline text-on-surface-variant rounded-lg font-label-md text-label-md hover:bg-surface-container-low transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">file_download</span>
+                            Export
+                        </button>
+</div>
+</div>
+<!-- Metrics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="glass-card p-6 rounded-2xl flex items-center justify-between border-l-4 border-l-primary">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant mb-1">Total Students</p>
+<p class="font-headline-xl text-headline-xl text-on-surface">12,482</p>
+<span class="text-green-600 text-xs font-medium flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-xs">trending_up</span> +2.4% vs last month
+                            </span>
+</div>
+<div class="w-14 h-14 rounded-2xl bg-primary-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">school</span>
+</div>
+</div>
+<div class="glass-card p-6 rounded-2xl flex items-center justify-between border-l-4 border-l-tertiary">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant mb-1">Active Teachers</p>
+<p class="font-headline-xl text-headline-xl text-on-surface">428</p>
+<span class="text-on-surface-variant text-xs font-medium flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-xs">horizontal_rule</span> Steady this week
+                            </span>
+</div>
+<div class="w-14 h-14 rounded-2xl bg-tertiary-container text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">person_play</span>
+</div>
+</div>
+<div class="glass-card p-6 rounded-2xl flex items-center justify-between border-l-4 border-l-secondary">
+<div>
+<p class="font-label-md text-label-md text-on-surface-variant mb-1">System Admins</p>
+<p class="font-headline-xl text-headline-xl text-on-surface">12</p>
+<span class="text-on-surface-variant text-xs font-medium flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-xs">verified_user</span> Managed roles
+                            </span>
+</div>
+<div class="w-14 h-14 rounded-2xl bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">admin_panel_settings</span>
+</div>
+</div>
+</div>
+<!-- Table Workspace -->
+<div class="glass-card rounded-2xl overflow-hidden border border-outline-variant bg-white">
+<!-- Table Toolbar -->
+<div class="p-4 border-b border-outline-variant flex flex-col sm:flex-row justify-between items-center gap-4 bg-white">
+<div class="flex gap-3 w-full sm:w-auto">
+<div class="flex flex-wrap gap-2">
+<button class="px-3 py-1.5 rounded-full bg-primary-container text-primary text-xs font-semibold flex items-center gap-1 border border-primary/20">
+                                    All Roles
+                                    <span class="material-symbols-outlined text-xs">close</span>
+</button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold border border-outline-variant hover:border-outline transition-colors">
+                                    Active Only
+                                </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold border border-outline-variant hover:border-outline transition-colors flex items-center gap-1">
+                                    Add Filter
+                                    <span class="material-symbols-outlined text-xs">add</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative">
+<input class="pl-8 pr-4 py-1.5 rounded-lg bg-white border border-outline text-xs focus:ring-1 focus:ring-primary focus:outline-none w-48" placeholder="Search in table..." type="text"/>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
+</div>
+<button class="p-1.5 text-on-surface-variant hover:bg-surface-container rounded transition-colors" title="Column Settings">
+<span class="material-symbols-outlined text-sm">view_column</span>
+</button>
+</div>
+</div>
+<!-- Table Container -->
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-sm text-sm">
+<thead class="bg-surface-container-low border-b border-outline-variant font-label-md text-on-surface-variant uppercase tracking-wider text-[11px]">
+<tr>
+<th class="p-4 w-4" scope="col">
+<div class="flex items-center">
+<input class="w-4 h-4 text-primary bg-white border-outline-variant rounded focus:ring-primary" type="checkbox"/>
+</div>
+</th>
+<th class="px-6 py-4 font-bold" scope="col">User Info</th>
+<th class="px-6 py-4 font-bold" scope="col">ID / Account</th>
+<th class="px-6 py-4 font-bold" scope="col">Role</th>
+<th class="px-6 py-4 font-bold" scope="col">Last Activity</th>
+<th class="px-6 py-4 font-bold" scope="col">Status</th>
+<th class="px-6 py-4 text-right font-bold" scope="col">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<!-- Row 1 -->
+<tr class="table-row-hover transition-colors">
+<td class="p-4 w-4">
+<div class="flex items-center">
+<input class="w-4 h-4 text-primary bg-white border-outline-variant rounded focus:ring-primary" type="checkbox"/>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs ring-1 ring-primary/20">NL</div>
+<div>
+<div class="font-semibold text-on-surface">Nguyen Van Linh</div>
+<div class="text-[12px] text-on-surface-variant">Applied: Sep 12, 2023</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="font-code-sm text-code-sm text-on-surface font-medium">SE150001</div>
+<div class="text-[12px] text-on-surface-variant">linhnv@fpt.edu.vn</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-blue-50 text-blue-700 text-[11px] font-bold uppercase px-2 py-0.5 rounded border border-blue-200">Student</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant">2 mins ago</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-green-600 font-medium text-[13px]">
+<div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                            Active
+                                        </div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1" title="More options">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="table-row-hover transition-colors">
+<td class="p-4 w-4">
+<div class="flex items-center">
+<input class="w-4 h-4 text-primary bg-white border-outline-variant rounded focus:ring-primary" type="checkbox"/>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs ring-1 ring-indigo-200">TH</div>
+<div>
+<div class="font-semibold text-on-surface">Tran Thi Hoa</div>
+<div class="text-[12px] text-on-surface-variant">Applied: Aug 05, 2022</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="font-code-sm text-code-sm text-on-surface font-medium">TCH0012</div>
+<div class="text-[12px] text-on-surface-variant">hoatt@fpt.edu.vn</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-indigo-50 text-indigo-700 text-[11px] font-bold uppercase px-2 py-0.5 rounded border border-indigo-200">Teacher</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant">1 hour ago</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-green-600 font-medium text-[13px]">
+<div class="w-2 h-2 rounded-full bg-green-500"></div>
+                                            Active
+                                        </div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1" title="More actions">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="table-row-hover transition-colors opacity-75">
+<td class="p-4 w-4">
+<div class="flex items-center">
+<input class="w-4 h-4 text-primary bg-white border-outline-variant rounded focus:ring-primary" type="checkbox"/>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-xs ring-1 ring-slate-200">LD</div>
+<div>
+<div class="font-semibold text-on-surface">Le Van Dat</div>
+<div class="text-[12px] text-on-surface-variant">Applied: Jan 15, 2023</div>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="font-code-sm text-code-sm text-on-surface font-medium">SE140888</div>
+<div class="text-[12px] text-on-surface-variant">datlv@fpt.edu.vn</div>
+</td>
+<td class="px-6 py-4">
+<span class="bg-slate-50 text-slate-600 text-[11px] font-bold uppercase px-2 py-0.5 rounded border border-slate-200">Student</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant">3 weeks ago</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-2 text-error font-medium text-[13px]">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+                                            Suspended
+                                        </div>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="text-on-surface-variant hover:text-primary transition-colors p-1" title="Restore account">
+<span class="material-symbols-outlined">settings_backup_restore</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="p-4 border-t border-outline-variant bg-white flex justify-between items-center text-sm text-on-surface-variant">
+<span class="text-xs font-medium">Showing <span class="text-on-surface">1 - 3</span> of <span class="text-on-surface">12,922</span> entries</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded hover:bg-surface-container-low disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span> Previous
+                            </button>
+<div class="flex gap-1">
+<button class="w-8 h-8 flex items-center justify-center rounded bg-primary text-on-primary text-xs font-bold">1</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-xs font-medium">2</button>
+<button class="w-8 h-8 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-container-low text-xs font-medium">3</button>
+<span class="w-8 h-8 flex items-center justify-center text-xs">...</span>
+</div>
+<button class="px-3 py-1 border border-outline-variant rounded hover:bg-surface-container-low flex items-center gap-1">
+                                Next <span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

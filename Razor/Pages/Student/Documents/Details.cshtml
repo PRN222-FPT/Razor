@@ -1,0 +1,95 @@
+@page "{documentId:guid}"
+@model Razor.Pages.Student.Documents.DetailsModel
+@{
+    ViewData["Title"] = "Student Document";
+    ViewData["HideAppChrome"] = true;
+    ViewData["BodyClass"] = "student-chat-body";
+
+    var document = Model.Document!;
+    var statusClass = Model.GetStatusClass();
+}
+
+<section class="student-document-page">
+    <header class="student-chat-topbar">
+        <div class="student-chat-brand-row">
+            <a class="student-chat-brand" asp-page="/Student/Chat" asp-route-view="documents">
+                <span class="student-chat-school-icon" aria-hidden="true"></span>
+                FPT UniRAG
+            </a>
+        </div>
+        <div class="student-chat-top-actions">
+            <a class="student-chat-upload student-document-back" asp-page="/Student/Chat" asp-route-view="documents">
+                Back to Documents
+            </a>
+            <div class="student-chat-avatar" aria-label="Student profile"></div>
+        </div>
+    </header>
+
+    <main class="student-document-shell">
+        <section class="student-document-hero">
+            <div>
+                <span class="student-document-eyebrow">Subject Document</span>
+                <h1>@document.Title</h1>
+                <p>@document.SubjectCode - @document.SubjectName</p>
+            </div>
+            <span class="student-document-status @statusClass">@Model.FormatStatus()</span>
+        </section>
+
+        <section class="student-document-grid" aria-label="Document details">
+            <article class="student-document-summary">
+                <div class="student-document-meta">
+                    <span>Subject</span>
+                    <strong>@document.SubjectCode</strong>
+                </div>
+                <div class="student-document-meta">
+                    <span>Chapter</span>
+                    <strong>@document.ChapterTitle</strong>
+                </div>
+                <div class="student-document-meta">
+                    <span>Uploaded</span>
+                    <strong>@Model.FormatDocumentDate(document.CreatedAt)</strong>
+                </div>
+                <div class="student-document-meta">
+                    <span>File type</span>
+                    <strong>@(string.IsNullOrWhiteSpace(document.FileType) ? "Unknown" : document.FileType.ToUpperInvariant())</strong>
+                </div>
+            </article>
+
+            <aside class="student-document-note">
+                <strong>Document viewer</strong>
+                <p>This page shows the extracted document content that was uploaded for the subject.</p>
+                @if (!string.IsNullOrWhiteSpace(document.ErrorMessage))
+                {
+                    <p class="student-document-error">@document.ErrorMessage</p>
+                }
+            </aside>
+        </section>
+
+        <section class="student-document-chunks" aria-labelledby="student-document-chunks-title">
+            <div class="student-chat-section-title">
+                <h3 id="student-document-chunks-title">Document Content</h3>
+                <span>@document.Chunks.Count chunk(s)</span>
+            </div>
+
+            @if (document.Chunks.Count == 0)
+            {
+                <div class="student-chat-empty">No extracted content is available yet for this document.</div>
+            }
+            else
+            {
+                <div class="student-document-chunk-list">
+                    @foreach (var chunk in document.Chunks)
+                    {
+                        <article class="student-document-chunk">
+                            <header>
+                                <strong>Chunk @((chunk.ChunkIndex + 1).ToString("N0"))</strong>
+                                <span>@Model.FormatDocumentDate(chunk.CreatedAt)</span>
+                            </header>
+                            <p>@chunk.Content</p>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    </main>
+</section>

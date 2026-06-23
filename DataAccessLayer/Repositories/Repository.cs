@@ -3,35 +3,45 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DataAccessLayer.Repositories;
 
-public class Repository<T> : IRepository<T> where T : class
+public class Repository<TEntity>(AppDbContext dbContext) : IRepository<TEntity>
+    where TEntity : class
 {
-    protected readonly AppDbContext Context;
-    protected readonly DbSet<T> DbSet;
+    private readonly DbSet<TEntity> _dbSet = dbContext.Set<TEntity>();
 
-    public Repository(AppDbContext context)
+    public async Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        Context = context;
-        DbSet = context.Set<T>();
+        return await _dbSet.ToListAsync(cancellationToken);
     }
 
-    public async Task<IEnumerable<T>> GetAllAsync()
-        => await DbSet.ToListAsync();
+    public async Task<TEntity?> GetByIdAsync(object id, CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.FindAsync([id], cancellationToken);
+    }
 
-    public async Task<T?> GetByIdAsync(int id)
-        => await DbSet.FindAsync(id);
+    public async Task AddAsync(TEntity entity, CancellationToken cancellationToken = default)
+    {
+        await _dbSet.AddAsync(entity, cancellationToken);
+    }
 
-    public async Task AddAsync(T entity)
-        => await DbSet.AddAsync(entity);
+    public void Update(TEntity entity)
+    {
+        _dbSet.Update(entity);
+    }
 
-    public void Update(T entity)
-        => DbSet.Update(entity);
+    public void Delete(TEntity entity)
+    {
+        _dbSet.Remove(entity);
+    }
 
-    public void Delete(T entity)
-        => DbSet.Remove(entity);
+    public async Task<IReadOnlyList<TEntity>> FindAsync(
+        Expression<Func<TEntity, bool>> predicate,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbSet.Where(predicate).ToListAsync(cancellationToken);
+    }
 
-    public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
-        => await DbSet.Where(predicate).ToListAsync();
-
-    public IQueryable<T> Query()
-        => DbSet.AsQueryable();
+    public IQueryable<TEntity> Query()
+    {
+        return _dbSet.AsQueryable();
+    }
 }
