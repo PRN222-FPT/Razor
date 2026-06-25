@@ -8311,3 +8311,234 @@ textarea::placeholder,
 .student-chat-citation-dialog header p {
   color: #5e6c84 !important;
 }
+
+/* Global softness refinement pass across all screens. */
+:root {
+  --app-primary: #86dc63;
+  --app-primary-dark: #6fc24d;
+  --app-primary-soft: #f2faec;
+  --app-primary-soft-strong: #e9f7df;
+  --app-border: #e8ebe7;
+  --app-surface: #f7f8f6;
+  --app-panel: #ffffff;
+  --app-panel-soft: #fcfdfb;
+  --app-radius: 28px;
+  --app-radius-card: 32px;
+  --app-shadow: 0 20px 44px rgba(17, 24, 39, 0.05);
+  --app-shadow-soft: 0 10px 26px rgba(17, 24, 39, 0.045);
+  --app-focus: 0 0 0 0.26rem rgba(134, 220, 99, 0.18);
+}
+
+body,
+.teacher-stitch-body,
+.student-chat-body,
+.admin-blue-body,
+.login-page-body {
+  background:
+    radial-gradient(circle at top left, rgba(134, 220, 99, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.75), transparent 28%),
+    linear-gradient(180deg, #fbfcf9 0%, var(--app-surface) 100%) !important;
+}
+
+.workspace-info-card,
+.login-card,
+.admin-blue-hero-surface,
+.admin-blue-metric,
+.admin-blue-create-card,
+.admin-blue-table-card,
+.teacher-stitch-glass-card,
+.student-chat-thread-panel,
+.student-chat-context,
+.student-chat-library-panel,
+.student-document-hero,
+.student-document-summary,
+.student-document-note,
+.student-document-chunk,
+.teacher-document-chunk,
+.student-chat-citation-dialog {
+  border-radius: var(--app-radius-card) !important;
+  border: 1px solid rgba(232, 235, 231, 0.96) !important;
+  box-shadow: var(--app-shadow) !important;
+}
+
+.workspace-sidebar,
+.admin-blue-sidebar,
+.teacher-stitch-sidebar,
+.student-chat-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 251, 246, 0.92)) !important;
+  border-color: rgba(232, 235, 231, 0.96) !important;
+}
+
+.workspace-header,
+.admin-blue-topbar,
+.teacher-stitch-topbar,
+.student-chat-topbar {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(232, 235, 231, 0.92) !important;
+  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.04) !important;
+}
+
+.workspace-nav a,
+.workspace-header-button,
+.workspace-logout-button,
+.admin-blue-menu a,
+.admin-blue-filter-row a,
+.admin-blue-primary-button,
+.admin-blue-secondary-button,
+.admin-blue-danger-button,
+.admin-blue-reset-button,
+.admin-blue-column-button,
+.admin-blue-logout-button,
+.teacher-stitch-role-nav a,
+.teacher-stitch-menu a,
+.teacher-stitch-account-button,
+.teacher-stitch-primary-button,
+.teacher-stitch-logout-button,
+.teacher-stitch-row-actions button,
+.teacher-stitch-row-actions a,
+.teacher-stitch-file-button,
+.teacher-stitch-pagination button,
+.student-chat-account-link,
+.student-chat-logout-button,
+.student-chat-new,
+.student-chat-menu a,
+.student-chat-history-item,
+.student-chat-citation-chip,
+.student-chat-send,
+.student-chat-upload,
+.btn,
+button {
+  border-radius: 999px !important;
+}
+
+.workspace-nav a,
+.workspace-header-button,
+.workspace-logout-button,
+.admin-blue-menu a,
+.admin-blue-filter-row a,
+.admin-blue-secondary-button,
+.admin-blue-danger-button,
+.admin-blue-reset-button,
+.admin-blue-column-button,
+.admin-blue-logout-button,
+.teacher-stitch-account-button,
+.teacher-stitch-file-button,
+.teacher-stitch-row-actions button,
+.teacher-stitch-row-actions a,
+.teacher-stitch-pagination button,
+.student-chat-account-link,
+.student-chat-logout-button,
+.student-chat-menu a,
+.student-chat-history-item,
+.student-chat-upload {
+  min-height: 46px;
+  border-width: 1px !important;
+  box-shadow: none !important;
+}
+
+.admin-blue-primary-button,
+.teacher-stitch-primary-button,
+.student-chat-new,
+.student-chat-send,
+.login-submit,
+.workspace-header-button:not(.secondary),
+.btn-primary {
+  background: linear-gradient(135deg, var(--app-primary), #b5ec95) !important;
+  box-shadow: 0 14px 30px rgba(134, 220, 99, 0.2) !important;
+}
+
+.admin-blue-primary-button:hover,
+.teacher-stitch-primary-button:hover,
+.student-chat-new:hover,
+.student-chat-send:hover:not(:disabled),
+.login-submit:hover,
+.workspace-header-button:not(.secondary):hover,
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--app-primary-dark), #a4e581) !important;
+  box-shadow: 0 16px 34px rgba(134, 220, 99, 0.22) !important;
+}
+
+.input-shell .form-control,
+.form-field .form-control,
+.admin-blue-field input,
+.admin-blue-field select,
+.teacher-stitch-text-input input,
+.teacher-stitch-select-wrap select,
+.student-chat-subject-select,
+.student-chat-composer textarea,
+.admin-blue-table-search input {
+  border-radius: 20px !important;
+  background: rgba(252, 253, 251, 0.96) !important;
+  border-color: rgba(232, 235, 231, 0.98) !important;
+}
+
+.student-chat-composer-card {
+  border-radius: 30px !important;
+  padding: 16px !important;
+}
+
+.teacher-stitch-table-wrap,
+.admin-blue-table-wrap,
+.admin-blue-teacher-picker,
+.admin-blue-subject-list {
+  border-radius: 28px !important;
+  border-color: rgba(232, 235, 231, 0.96) !important;
+  background: rgba(252, 253, 251, 0.84) !important;
+}
+
+.teacher-stitch-table th,
+.teacher-stitch-table td,
+.admin-blue-users-table th,
+.admin-blue-users-table td {
+  border-color: rgba(232, 235, 231, 0.9) !important;
+}
+
+.teacher-stitch-table tbody tr:hover,
+.admin-blue-users-table tbody tr:hover {
+  background: rgba(134, 220, 99, 0.06) !important;
+}
+
+.admin-blue-alert,
+.teacher-stitch-alert,
+.alert,
+.student-chat-validation {
+  border-radius: 22px !important;
+}
+
+.student-chat-user-bubble {
+  border-radius: 24px 24px 8px 24px !important;
+}
+
+.student-chat-ai-bubble {
+  border-radius: 24px 24px 24px 10px !important;
+  box-shadow: var(--app-shadow-soft) !important;
+}
+
+.admin-blue-metric,
+.teacher-stitch-analytics .teacher-stitch-glass-card {
+  min-height: 190px !important;
+}
+
+.admin-blue-create-card,
+.admin-blue-table-card,
+.teacher-stitch-glass-card,
+.workspace-info-card {
+  padding: 30px !important;
+}
+
+.workspace-content,
+.teacher-stitch-main,
+.student-chat-main,
+.student-document-shell {
+  padding-bottom: 48px !important;
+}
+
+@media (max-width: 980px) {
+  .admin-blue-create-card,
+  .admin-blue-table-card,
+  .teacher-stitch-glass-card,
+  .workspace-info-card {
+    padding: 22px !important;
+  }
+}
