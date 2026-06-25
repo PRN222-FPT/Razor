@@ -82,7 +82,7 @@ public sealed class AdminUserServiceSubjectTests
     }
 
     [Fact]
-    public async Task CreateSubjectAsync_FailsWhenHeaderTeacherIsMissing()
+    public async Task CreateSubjectAsync_AllowsAssignedTeachersWithoutHeader()
     {
         await using var context = CreateContext();
         var teacherOneId = Guid.NewGuid();
@@ -106,10 +106,11 @@ public sealed class AdminUserServiceSubjectTests
                 [teacherOneId],
                 null));
 
-        Assert.False(result.Succeeded);
-        Assert.Equal("Select a header teacher from the assigned teachers.", result.ErrorMessage);
-        Assert.Empty(await context.Subjects.ToListAsync());
-        Assert.Empty(await context.TeacherSubjects.ToListAsync());
+        Assert.True(result.Succeeded);
+        var subject = await context.Subjects.SingleAsync(item => item.SubjectCode == "PRN223");
+        var teacherSubject = await context.TeacherSubjects.SingleAsync(item => item.SubjectId == subject.SubjectId);
+        Assert.Equal(teacherOneId, teacherSubject.TeacherId);
+        Assert.False(teacherSubject.IsHeadOfDepartment);
     }
 
     [Fact]
@@ -174,6 +175,51 @@ public sealed class AdminUserServiceSubjectTests
             .Where(item => item.SubjectId == subject.SubjectId && item.IsHeadOfDepartment)
             .Select(item => item.TeacherId)
             .SingleAsync());
+    }
+
+    [Fact]
+    public async Task CreateSubjectAsync_NotifiesAssignedTeachersAfterCreation()
+    {
+        await using var context = CreateContext();
+        var teacherOneId = Guid.NewGuid();
+        var teacherTwoId = Guid.NewGuid();
+        var notifier = new RecordingTeacherSubjectRealtimeNotifier();
+
+        context.Teachers.AddRange(
+            new Teacher
+            {
+                TeacherId = teacherOneId,
+                FullName = "Alice Nguyen",
+                Email = "alice@example.com",
+                Department = "Software"
+            },
+            new Teacher
+            {
+                TeacherId = teacherTwoId,
+                FullName = "Bob Tran",
+                Email = "bob@example.com",
+                Department = "AI"
+            });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, notifier);
+
+        var result = await service.CreateSubjectAsync(
+            new CreateSubjectRequest(
+                "PRN227",
+                "Realtime Subject",
+                null,
+                [teacherOneId, teacherTwoId],
+                teacherOneId));
+
+        Assert.True(result.Succeeded);
+        var notification = Assert.Single(notifier.AssignedNotifications);
+        Assert.Equal(result.SubjectId, notification.SubjectId);
+        Assert.Equal("PRN227", notification.SubjectCode);
+        Assert.Equal("Realtime Subject", notification.SubjectName);
+        Assert.Equal(2, notification.TeacherIds.Count);
+        Assert.Contains(teacherOneId, notification.TeacherIds);
+        Assert.Contains(teacherTwoId, notification.TeacherIds);
     }
 
     [Fact]
@@ -332,13 +378,75 @@ public sealed class AdminUserServiceSubjectTests
         Assert.Single(await context.Teachers.ToListAsync());
     }
 
-    private static AdminUserService CreateService(AppDbContext context)
+    [Fact]
+    public async Task DeleteSubjectAsync_NotifiesAssignedTeachersAfterDeletion()
+    {
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherOneId = Guid.NewGuid();
+        var teacherTwoId = Guid.NewGuid();
+        var notifier = new RecordingTeacherSubjectRealtimeNotifier();
+
+        context.Subjects.Add(new Subject
+        {
+            SubjectId = subjectId,
+            SubjectCode = "PRN222",
+            SubjectName = "Razor Pages"
+        });
+        context.Teachers.AddRange(
+            new Teacher
+            {
+                TeacherId = teacherOneId,
+                FullName = "Alice Nguyen",
+                Email = "alice@example.com"
+            },
+            new Teacher
+            {
+                TeacherId = teacherTwoId,
+                FullName = "Bob Tran",
+                Email = "bob@example.com"
+            });
+        context.TeacherSubjects.AddRange(
+            new TeacherSubject
+            {
+                TeacherSubjectId = Guid.NewGuid(),
+                TeacherId = teacherOneId,
+                SubjectId = subjectId,
+                IsHeadOfDepartment = true
+            },
+            new TeacherSubject
+            {
+                TeacherSubjectId = Guid.NewGuid(),
+                TeacherId = teacherTwoId,
+                SubjectId = subjectId,
+                IsHeadOfDepartment = false
+            });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, notifier);
+
+        var result = await service.DeleteSubjectAsync(subjectId);
+
+        Assert.True(result.Succeeded);
+        var notification = Assert.Single(notifier.Notifications);
+        Assert.Equal(subjectId, notification.SubjectId);
+        Assert.Equal("PRN222", notification.SubjectCode);
+        Assert.Equal("Razor Pages", notification.SubjectName);
+        Assert.Equal(2, notification.TeacherIds.Count);
+        Assert.Contains(teacherOneId, notification.TeacherIds);
+        Assert.Contains(teacherTwoId, notification.TeacherIds);
+    }
+
+    private static AdminUserService CreateService(
+        AppDbContext context,
+        ITeacherSubjectRealtimeNotifier? teacherSubjectRealtimeNotifier = null)
     {
         return new AdminUserService(
             new UnitOfWork(context),
             new PasswordHasher<User>(),
             new NoOpStudentCredentialEmailSender(),
             new NoOpTeacherCredentialEmailSender(),
+            teacherSubjectRealtimeNotifier ?? new NoOpTeacherSubjectRealtimeNotifier(),
             NullLogger<AdminUserService>.Instance);
     }
 
@@ -363,6 +471,45 @@ public sealed class AdminUserServiceSubjectTests
     {
         public Task SendAsync(TeacherCredentialEmailRequest request, CancellationToken cancellationToken = default)
         {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpTeacherSubjectRealtimeNotifier : ITeacherSubjectRealtimeNotifier
+    {
+        public Task NotifySubjectAssignedAsync(
+            TeacherSubjectAssignedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifySubjectDeletedAsync(
+            TeacherSubjectDeletedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingTeacherSubjectRealtimeNotifier : ITeacherSubjectRealtimeNotifier
+    {
+        public List<TeacherSubjectAssignedNotification> AssignedNotifications { get; } = [];
+        public List<TeacherSubjectDeletedNotification> Notifications { get; } = [];
+
+        public Task NotifySubjectAssignedAsync(
+            TeacherSubjectAssignedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            AssignedNotifications.Add(notification);
+            return Task.CompletedTask;
+        }
+
+        public Task NotifySubjectDeletedAsync(
+            TeacherSubjectDeletedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            Notifications.Add(notification);
             return Task.CompletedTask;
         }
     }

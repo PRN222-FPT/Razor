@@ -79,6 +79,7 @@ public sealed record TeacherUploadSubjectDto(
 public sealed record TeacherDocumentRowDto(
     Guid DocumentId,
     string Title,
+    Guid SubjectId,
     string SubjectCode,
     string SubjectName,
     string ChapterTitle,

@@ -168,6 +168,7 @@ public sealed class AdminUserServiceAccountStatusTests
             new PasswordHasher<User>(),
             studentSender,
             teacherSender,
+            new NoOpTeacherSubjectRealtimeNotifier(),
             NullLogger<AdminUserService>.Instance);
     }
 
@@ -229,6 +230,23 @@ public sealed class AdminUserServiceAccountStatusTests
         public Task SendAsync(TeacherCredentialEmailRequest request, CancellationToken cancellationToken = default)
         {
             SentRequests.Add(request);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoOpTeacherSubjectRealtimeNotifier : ITeacherSubjectRealtimeNotifier
+    {
+        public Task NotifySubjectAssignedAsync(
+            TeacherSubjectAssignedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task NotifySubjectDeletedAsync(
+            TeacherSubjectDeletedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
             return Task.CompletedTask;
         }
     }

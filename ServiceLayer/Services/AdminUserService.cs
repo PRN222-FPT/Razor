@@ -19,6 +19,7 @@ public sealed class AdminUserService(
     IPasswordHasher<User> passwordHasher,
     IStudentCredentialEmailSender studentCredentialEmailSender,
     ITeacherCredentialEmailSender teacherCredentialEmailSender,
+    ITeacherSubjectRealtimeNotifier teacherSubjectRealtimeNotifier,
     ILogger<AdminUserService> logger) : IAdminUserService
 {
     private const int MaxStudentImportRows = 1000;
@@ -250,6 +251,17 @@ public sealed class AdminUserService(
                 "The database still has the old one-teacher-per-subject constraint. Restart the app so the compatibility update can run, then try again.");
         }
 
+        if (assignedTeacherIds.Count > 0)
+        {
+            await teacherSubjectRealtimeNotifier.NotifySubjectAssignedAsync(
+                new TeacherSubjectAssignedNotification(
+                    subject.SubjectId,
+                    subject.SubjectCode,
+                    subject.SubjectName,
+                    assignedTeacherIds),
+                cancellationToken);
+        }
+
         return CreateSubjectResult.Success(subject.SubjectId);
     }
 
@@ -269,6 +281,10 @@ public sealed class AdminUserService(
             .Query()
             .Where(item => item.SubjectId == subjectId)
             .ToListAsync(cancellationToken);
+        var affectedTeacherIds = teacherSubjects
+            .Select(item => item.TeacherId)
+            .Distinct()
+            .ToArray();
 
         var sessions = await unitOfWork.Repository<Session>()
             .Query()
@@ -367,6 +383,17 @@ public sealed class AdminUserService(
         unitOfWork.Repository<Subject>().Delete(subject);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        if (affectedTeacherIds.Length > 0)
+        {
+            await teacherSubjectRealtimeNotifier.NotifySubjectDeletedAsync(
+                new TeacherSubjectDeletedNotification(
+                    subject.SubjectId,
+                    subject.SubjectCode,
+                    subject.SubjectName,
+                    affectedTeacherIds),
+                cancellationToken);
+        }
 
         logger.LogInformation(
             "Subject deleted. SubjectId={SubjectId}, TeacherAssignments={TeacherAssignments}, Sessions={SessionCount}, Documents={DocumentCount}",
