@@ -208,6 +208,7 @@ builder.Services.AddScoped<IStudentCredentialEmailSender, SmtpStudentCredentialE
 builder.Services.AddScoped<ITeacherCredentialEmailSender, SmtpTeacherCredentialEmailSender>();
 builder.Services.AddScoped<IPasswordResetEmailSender, SmtpPasswordResetEmailSender>();
 builder.Services.AddScoped<IDocumentProcessingNotifier, SignalRDocumentProcessingNotifier>();
+builder.Services.AddScoped<ITeacherSubjectRealtimeNotifier, SignalRTeacherSubjectRealtimeNotifier>();
 builder.Services.AddSingleton<IDocumentProcessingQueue, DocumentProcessingQueue>();
 builder.Services.AddScoped<IDocumentParser, DocumentParser>();
 builder.Services.AddScoped<IDocumentChunker, DocumentChunker>();

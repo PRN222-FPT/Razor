@@ -53,6 +53,7 @@ public sealed class TeacherDocumentService(
             .Select(document => new DocumentRowProjection(
                 document.DocumentId,
                 document.Title,
+                document.SubjectId,
                 document.Subject.SubjectCode,
                 document.Subject.SubjectName,
                 document.Chapter.ChapterTitle,
@@ -68,6 +69,7 @@ public sealed class TeacherDocumentService(
             .Select(document => new TeacherDocumentRowDto(
                 document.DocumentId,
                 document.Title,
+                document.SubjectId,
                 document.SubjectCode,
                 document.SubjectName,
                 document.ChapterTitle,
@@ -118,6 +120,7 @@ public sealed class TeacherDocumentService(
             .Select(document => new DocumentRowProjection(
                 document.DocumentId,
                 document.Title,
+                document.SubjectId,
                 document.Subject.SubjectCode,
                 document.Subject.SubjectName,
                 document.Chapter.ChapterTitle,
@@ -133,6 +136,7 @@ public sealed class TeacherDocumentService(
             .Select(document => new TeacherDocumentRowDto(
                 document.DocumentId,
                 document.Title,
+                document.SubjectId,
                 document.SubjectCode,
                 document.SubjectName,
                 document.ChapterTitle,
@@ -654,6 +658,7 @@ public sealed class TeacherDocumentService(
     private sealed record DocumentRowProjection(
         Guid DocumentId,
         string Title,
+        Guid SubjectId,
         string SubjectCode,
         string SubjectName,
         string ChapterTitle,

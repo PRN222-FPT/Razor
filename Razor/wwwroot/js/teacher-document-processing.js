@@ -30,6 +30,27 @@
     updateViewLink(row, nextStatus);
   });
 
+  connection.on('subjectDeleted', (message) => {
+    const subjectId = message?.subjectId || message?.SubjectId;
+    if (!subjectId) {
+      return;
+    }
+
+    removeDeletedSubjectOption(subjectId);
+    removeDeletedSubjectRows(subjectId);
+    showSubjectSyncMessage(message);
+  });
+
+  connection.on('subjectAssigned', (message) => {
+    const subjectId = message?.subjectId || message?.SubjectId;
+    if (!subjectId) {
+      return;
+    }
+
+    addAssignedSubjectOption(message);
+    showSubjectAssignedMessage(message);
+  });
+
   connection.start().catch(() => {
     // Server-rendered status remains the fallback when realtime updates are unavailable.
   });
@@ -99,6 +120,177 @@
     const isCompleted = status === 'completed';
     link.classList.toggle('disabled', !isCompleted);
     link.setAttribute('aria-disabled', String(!isCompleted));
+  }
+
+  function removeDeletedSubjectOption(subjectId) {
+    const select = document.querySelector('[data-upload-subject-select]');
+    if (!select) {
+      return;
+    }
+
+    const option = select.querySelector(`option[value="${subjectId}"]`);
+    if (!option) {
+      return;
+    }
+
+    const wasSelected = select.value === subjectId;
+    option.remove();
+
+    if (wasSelected) {
+      select.value = '';
+    }
+
+    const hasSubjects = Array.from(select.options).some((candidate) => candidate.value);
+    toggleUploadAvailability(hasSubjects);
+  }
+
+  function addAssignedSubjectOption(message) {
+    const select = document.querySelector('[data-upload-subject-select]');
+    if (!select) {
+      return;
+    }
+
+    const subjectId = message?.subjectId || message?.SubjectId;
+    if (!subjectId || select.querySelector(`option[value="${subjectId}"]`)) {
+      return;
+    }
+
+    const subjectCode = message?.subjectCode || message?.SubjectCode || '';
+    const subjectName = message?.subjectName || message?.SubjectName || '';
+
+    const option = document.createElement('option');
+    option.value = subjectId;
+    option.textContent = `${subjectCode}: ${subjectName}`;
+
+    const placeholder = select.querySelector('option[value=""]');
+    if (placeholder?.nextSibling) {
+      select.insertBefore(option, placeholder.nextSibling);
+    } else {
+      select.appendChild(option);
+    }
+
+    sortSubjectOptions(select);
+    toggleUploadAvailability(true);
+  }
+
+  function removeDeletedSubjectRows(subjectId) {
+    const rows = Array.from(document.querySelectorAll(`[data-subject-id="${subjectId}"]`));
+    rows.forEach((row) => {
+      updateQueueCount(row.dataset.documentStatus || '', '');
+      row.remove();
+    });
+
+    refreshDocumentCounters();
+    ensureEmptyStateRows();
+  }
+
+  function showSubjectSyncMessage(message) {
+    const alert = document.querySelector('[data-subject-sync-message]');
+    if (!alert) {
+      return;
+    }
+
+    const subjectCode = message?.subjectCode || message?.SubjectCode || 'Subject';
+    const subjectName = message?.subjectName || message?.SubjectName || '';
+    alert.textContent = subjectName
+      ? `${subjectCode}: ${subjectName} was removed by an administrator.`
+      : `${subjectCode} was removed by an administrator.`;
+    alert.hidden = false;
+  }
+
+  function showSubjectAssignedMessage(message) {
+    const alert = document.querySelector('[data-subject-sync-message]');
+    if (!alert) {
+      return;
+    }
+
+    const subjectCode = message?.subjectCode || message?.SubjectCode || 'Subject';
+    const subjectName = message?.subjectName || message?.SubjectName || '';
+    alert.textContent = subjectName
+      ? `${subjectCode}: ${subjectName} was assigned by an administrator.`
+      : `${subjectCode} was assigned by an administrator.`;
+    alert.hidden = false;
+  }
+
+  function toggleUploadAvailability(hasSubjects) {
+    const warning = document.querySelector('[data-no-subject-warning]');
+    if (warning) {
+      warning.hidden = hasSubjects;
+    }
+
+    const subjectSelect = document.querySelector('[data-upload-subject-select]');
+    if (subjectSelect) {
+      subjectSelect.disabled = !hasSubjects;
+    }
+
+    document.querySelectorAll('[data-upload-field], [data-upload-submit]').forEach((element) => {
+      element.disabled = !hasSubjects;
+    });
+
+    if (!hasSubjects) {
+      const fileName = document.querySelector('[data-upload-file-name]');
+      if (fileName) {
+        fileName.textContent = 'No file selected';
+      }
+    }
+  }
+
+  function refreshDocumentCounters() {
+    const count = document.querySelectorAll('[data-document-row]').length;
+    const formattedCount = count.toLocaleString();
+
+    const totalDocuments = document.querySelector('[data-teacher-total-documents]');
+    if (totalDocuments) {
+      totalDocuments.textContent = formattedCount;
+    }
+
+    document.querySelectorAll('[data-teacher-visible-documents]').forEach((element) => {
+      element.textContent = formattedCount;
+    });
+  }
+
+  function ensureEmptyStateRows() {
+    document.querySelectorAll('table').forEach((table) => {
+      const tbody = table.querySelector('tbody');
+      if (!tbody) {
+        return;
+      }
+
+      const documentRows = tbody.querySelectorAll('[data-document-row]');
+      const existingEmptyRow = tbody.querySelector('[data-generated-empty-row]');
+      if (documentRows.length > 0) {
+        if (existingEmptyRow) {
+          existingEmptyRow.remove();
+        }
+
+        return;
+      }
+
+      if (existingEmptyRow) {
+        return;
+      }
+
+      const row = document.createElement('tr');
+      row.setAttribute('data-generated-empty-row', '');
+
+      const cell = document.createElement('td');
+      cell.colSpan = table.querySelectorAll('thead th').length || 1;
+      cell.className = 'teacher-stitch-empty';
+      cell.textContent = 'No documents have been uploaded yet.';
+
+      row.appendChild(cell);
+      tbody.appendChild(row);
+    });
+  }
+
+  function sortSubjectOptions(select) {
+    const options = Array.from(select.querySelectorAll('option'))
+      .filter((option) => option.value);
+
+    options.sort((left, right) => left.textContent.localeCompare(right.textContent));
+    options.forEach((option) => {
+      select.appendChild(option);
+    });
   }
 
   function initializeFilePicker() {

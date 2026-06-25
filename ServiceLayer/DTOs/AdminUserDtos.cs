@@ -67,6 +67,18 @@ public sealed record DeleteSubjectResult(
     public static DeleteSubjectResult Failure(string message) => new(false, message);
 }
 
+public sealed record TeacherSubjectDeletedNotification(
+    Guid SubjectId,
+    string SubjectCode,
+    string SubjectName,
+    IReadOnlyList<Guid> TeacherIds);
+
+public sealed record TeacherSubjectAssignedNotification(
+    Guid SubjectId,
+    string SubjectCode,
+    string SubjectName,
+    IReadOnlyList<Guid> TeacherIds);
+
 public sealed record CreateTeacherRequest(
     string Email,
     Guid? SubjectId,
