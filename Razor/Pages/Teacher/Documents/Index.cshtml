@@ -69,6 +69,8 @@
             <div class="teacher-stitch-alert success" role="status">@Model.SuccessMessage</div>
         }
 
+        <div class="teacher-stitch-alert success" role="status" data-subject-sync-message hidden></div>
+
         @if (!ViewData.ModelState.IsValid)
         {
             <div class="teacher-stitch-alert warning" role="alert">
@@ -83,7 +85,7 @@
             <div class="teacher-stitch-table-header">
                 <div>
                     <h2 id="teacher-documents-title">Uploaded Documents</h2>
-                    <span>@documents.Count.ToString("N0") TOTAL</span>
+                    <span><span data-teacher-visible-documents>@documents.Count.ToString("N0")</span> TOTAL</span>
                 </div>
             </div>
 
@@ -113,7 +115,7 @@
                             @foreach (var document in documents)
                             {
                                 var statusClass = Model.GetStatusClass(document);
-                                <tr data-document-row="@document.DocumentId" data-document-status="@document.Status.ToLowerInvariant()">
+                                <tr data-document-row="@document.DocumentId" data-document-status="@document.Status.ToLowerInvariant()" data-subject-id="@document.SubjectId">
                                     <td>
                                         <div class="teacher-stitch-file-cell">
                                             <span class="teacher-stitch-file-icon @Model.GetFileIconClass(document)">
