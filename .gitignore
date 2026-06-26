@@ -50,3 +50,4 @@ Razor/App_Data/tessdata/*.traineddata
 .codegraph/
 Razor\Razor\appsettings.json
 Razor/DataAccessLayer/Scripts/ 
+Razor/.stitch
