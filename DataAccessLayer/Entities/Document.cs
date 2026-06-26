@@ -15,6 +15,12 @@ public partial class Document
 
     public string? FileType { get; set; }
 
+    public string ChunkingStrategy { get; set; } = null!;
+
+    public int ChunkSize { get; set; }
+
+    public int ChunkOverlap { get; set; }
+
     public Guid? UploadedBy { get; set; }
 
     public Guid? UploadedTeacher { get; set; }

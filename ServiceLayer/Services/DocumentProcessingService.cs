@@ -72,7 +72,9 @@ public sealed class DocumentProcessingService(
                 filePath,
                 document.FileType ?? Path.GetExtension(filePath),
                 cancellationToken);
-            var chunkDrafts = chunker.CreateChunks(parsed);
+            var chunkDrafts = chunker.CreateChunks(
+                parsed,
+                ResolveChunkingSettings(document));
             if (chunkDrafts.Count == 0)
             {
                 throw new InvalidOperationException("Document did not contain extractable text.");
@@ -215,6 +217,46 @@ public sealed class DocumentProcessingService(
     private static DateTime CurrentTimestamp()
     {
         return DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+    }
+
+    private static DocumentChunkingSettings ResolveChunkingSettings(Document document)
+    {
+        var strategy = document.ChunkingStrategy?.Trim().ToLowerInvariant() switch
+        {
+            DocumentChunkingStrategies.Semantic => DocumentChunkingStrategies.Semantic,
+            DocumentChunkingStrategies.FixedSized => DocumentChunkingStrategies.FixedSized,
+            _ => DocumentChunkingStrategies.Recursive
+        };
+
+        return strategy switch
+        {
+            DocumentChunkingStrategies.FixedSized => new DocumentChunkingSettings(
+                DocumentChunkingStrategies.FixedSized,
+                document.ChunkSize >= 200
+                    ? document.ChunkSize
+                    : DocumentChunkingDefaults.FixedChunkSize,
+                document.ChunkSize >= 200
+                    && document.ChunkOverlap >= 0
+                    && document.ChunkOverlap <= document.ChunkSize / 2
+                    ? document.ChunkOverlap
+                    : DocumentChunkingDefaults.FixedChunkOverlap),
+            DocumentChunkingStrategies.Semantic => new DocumentChunkingSettings(
+                DocumentChunkingStrategies.Semantic,
+                document.ChunkSize > 0
+                    ? document.ChunkSize
+                    : DocumentChunkingDefaults.SemanticChunkSize,
+                DocumentChunkingDefaults.SemanticChunkOverlap),
+            _ => new DocumentChunkingSettings(
+                DocumentChunkingStrategies.Recursive,
+                document.ChunkSize > 0
+                    ? document.ChunkSize
+                    : DocumentChunkingDefaults.RecursiveChunkSize,
+                document.ChunkSize > 0
+                    && document.ChunkOverlap >= 0
+                    && document.ChunkOverlap <= document.ChunkSize / 2
+                    ? document.ChunkOverlap
+                    : DocumentChunkingDefaults.RecursiveChunkOverlap)
+        };
     }
 
     private static DocumentProcessingStatusNotification CreateNotification(

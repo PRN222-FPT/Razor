@@ -136,7 +136,44 @@
                         <input asp-for="UploadDocument.ChapterTitle" data-upload-field autocomplete="off" placeholder="General" disabled="@(!hasUploadSubjects)" />
                     </label>
                     <span asp-validation-for="UploadDocument.ChapterTitle" class="teacher-stitch-field-error"></span>
-                    <p>Select the subject and chapter for the document. Only header teachers can upload, and each chapter keeps one document.</p>
+                    <label class="teacher-stitch-select-wrap">
+                        <select asp-for="UploadDocument.ChunkingStrategy"
+                                data-upload-field
+                                data-chunking-strategy-select
+                                disabled="@(!hasUploadSubjects)">
+                            @foreach (var strategy in Model.AvailableChunkingStrategies)
+                            {
+                                <option value="@strategy.Value">@strategy.Label</option>
+                            }
+                        </select>
+                        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                    </label>
+                    <span asp-validation-for="UploadDocument.ChunkingStrategy" class="teacher-stitch-field-error"></span>
+                    <div data-fixed-chunking-fields hidden>
+                        <label class="teacher-stitch-text-input">
+                            <span>Chunk Size</span>
+                            <input asp-for="UploadDocument.FixedChunkSize"
+                                   type="number"
+                                   min="200"
+                                   step="1"
+                                   data-upload-field
+                                   data-fixed-chunk-size
+                                   disabled="@(!hasUploadSubjects)" />
+                        </label>
+                        <span asp-validation-for="UploadDocument.FixedChunkSize" class="teacher-stitch-field-error"></span>
+                        <label class="teacher-stitch-text-input">
+                            <span>Chunk Overlap</span>
+                            <input asp-for="UploadDocument.FixedChunkOverlap"
+                                   type="number"
+                                   min="0"
+                                   step="1"
+                                   data-upload-field
+                                   data-fixed-chunk-overlap
+                                   disabled="@(!hasUploadSubjects)" />
+                        </label>
+                        <span asp-validation-for="UploadDocument.FixedChunkOverlap" class="teacher-stitch-field-error"></span>
+                    </div>
+                    <p>Select the subject, chapter, and chunking strategy for the document. Only header teachers can upload, and each chapter keeps one document.</p>
                 </article>
             </div>
 

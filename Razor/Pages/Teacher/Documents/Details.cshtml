@@ -95,6 +95,15 @@
                 <strong>@document.ChapterTitle</strong>
                 <p>@Model.FormatDocumentDate(document.CreatedAt)</p>
             </article>
+
+            <article class="teacher-stitch-glass-card">
+                <div class="teacher-stitch-card-header">
+                    <span>Chunking</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">segment</span>
+                </div>
+                <strong>@Model.FormatChunkingStrategy()</strong>
+                <p>Size: @document.ChunkSize, Overlap: @document.ChunkOverlap</p>
+            </article>
         </section>
 
         <section class="teacher-stitch-glass-card teacher-stitch-documents" aria-labelledby="teacher-chunks-title">

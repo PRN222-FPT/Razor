@@ -38,6 +38,37 @@ public sealed class DocumentProcessingOptions
     public int MaxOcrPages { get; set; } = 50;
 }
 
+public static class DocumentChunkingStrategies
+{
+    public const string Semantic = "semantic";
+
+    public const string FixedSized = "fixed_sized";
+
+    public const string Recursive = "recursive";
+
+    public static readonly string[] All = [Semantic, FixedSized, Recursive];
+}
+
+public static class DocumentChunkingDefaults
+{
+    public const int RecursiveChunkSize = 1400;
+
+    public const int RecursiveChunkOverlap = 180;
+
+    public const int FixedChunkSize = 500;
+
+    public const int FixedChunkOverlap = 100;
+
+    public const int SemanticChunkSize = 1400;
+
+    public const int SemanticChunkOverlap = 0;
+}
+
+public sealed record DocumentChunkingSettings(
+    string Strategy,
+    int ChunkSize,
+    int ChunkOverlap);
+
 public sealed class GeminiOptions
 {
     public const string SectionName = "Gemini";
@@ -100,6 +131,9 @@ public sealed record TeacherDocumentDetailsDto(
     DateTime? CreatedAt,
     string Status,
     string? FileType,
+    string ChunkingStrategy,
+    int ChunkSize,
+    int ChunkOverlap,
     string? ErrorMessage,
     IReadOnlyList<TeacherDocumentChunkDto> Chunks);
 
@@ -115,6 +149,9 @@ public sealed record UploadTeacherDocumentRequest(
     string? Title,
     Guid SubjectId,
     string? ChapterTitle,
+    string? ChunkingStrategy,
+    int? ChunkSize,
+    int? ChunkOverlap,
     string OriginalFileName,
     long FileLength,
     Stream Content);

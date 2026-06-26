@@ -2,6 +2,7 @@ using DataAccessLayer;
 using DataAccessLayer.Entities;
 using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
+using ServiceLayer.DTOs;
 using ServiceLayer.Services;
 using Xunit;
 
@@ -37,6 +38,9 @@ public sealed class StudentDocumentServiceTests
             Title = "Routing Guide",
             FileUrl = "docs/routing.pdf",
             FileType = "pdf",
+            ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+            ChunkSize = DocumentChunkingDefaults.RecursiveChunkSize,
+            ChunkOverlap = DocumentChunkingDefaults.RecursiveChunkOverlap,
             Status = "completed",
             CreatedAt = new DateTime(2026, 6, 18, 9, 0, 0)
         });

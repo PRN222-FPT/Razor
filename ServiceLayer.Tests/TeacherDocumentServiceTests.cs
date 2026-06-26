@@ -94,6 +94,10 @@ public sealed class TeacherDocumentServiceTests
         Assert.Single(queue.EnqueuedDocumentIds);
         Assert.Equal(result.DocumentId, queue.EnqueuedDocumentIds[0]);
         Assert.Equal(2, await context.Documents.CountAsync(document => document.SubjectId == subjectId));
+        var uploadedDocument = await context.Documents.SingleAsync(document => document.DocumentId == result.DocumentId);
+        Assert.Equal(DocumentChunkingStrategies.Recursive, uploadedDocument.ChunkingStrategy);
+        Assert.Equal(DocumentChunkingDefaults.RecursiveChunkSize, uploadedDocument.ChunkSize);
+        Assert.Equal(DocumentChunkingDefaults.RecursiveChunkOverlap, uploadedDocument.ChunkOverlap);
 
         var chapters = await context.Chapters
             .Where(chapter => chapter.SubjectId == subjectId)
@@ -130,6 +134,68 @@ public sealed class TeacherDocumentServiceTests
 
         Assert.False(result.Succeeded);
         Assert.Contains("Only the header teacher", result.ErrorMessage);
+        Assert.Empty(queue.EnqueuedDocumentIds);
+    }
+
+    [Fact]
+    public async Task UploadAsync_PersistsFixedSizedChunkingSettings()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(context, storageRoot, vectorStore, queue);
+
+        var result = await service.UploadAsync(CreateUploadRequest(
+            teacherId,
+            "teacher@example.com",
+            subjectId,
+            "chapter-1.pdf",
+            "Chapter 1",
+            chunkingStrategy: DocumentChunkingStrategies.FixedSized,
+            chunkSize: 500,
+            chunkOverlap: 100));
+
+        Assert.True(result.Succeeded);
+        var uploadedDocument = await context.Documents.SingleAsync(document => document.DocumentId == result.DocumentId);
+        Assert.Equal(DocumentChunkingStrategies.FixedSized, uploadedDocument.ChunkingStrategy);
+        Assert.Equal(500, uploadedDocument.ChunkSize);
+        Assert.Equal(100, uploadedDocument.ChunkOverlap);
+    }
+
+    [Fact]
+    public async Task UploadAsync_RejectsInvalidFixedSizedChunkingSettings()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(context, storageRoot, vectorStore, queue);
+
+        var result = await service.UploadAsync(CreateUploadRequest(
+            teacherId,
+            "teacher@example.com",
+            subjectId,
+            "chapter-1.pdf",
+            "Chapter 1",
+            chunkingStrategy: DocumentChunkingStrategies.FixedSized,
+            chunkSize: 100,
+            chunkOverlap: 60));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("valid chunking strategy", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(queue.EnqueuedDocumentIds);
     }
 
@@ -422,7 +488,10 @@ public sealed class TeacherDocumentServiceTests
         string email,
         Guid subjectId,
         string fileName,
-        string chapterTitle)
+        string chapterTitle,
+        string? chunkingStrategy = null,
+        int? chunkSize = null,
+        int? chunkOverlap = null)
     {
         return new UploadTeacherDocumentRequest(
             teacherId,
@@ -430,6 +499,9 @@ public sealed class TeacherDocumentServiceTests
             "Replacement",
             subjectId,
             chapterTitle,
+            chunkingStrategy ?? DocumentChunkingStrategies.Recursive,
+            chunkSize,
+            chunkOverlap,
             fileName,
             11,
             new MemoryStream(Encoding.UTF8.GetBytes("new content")));
@@ -516,6 +588,9 @@ public sealed class TeacherDocumentServiceTests
             Title = "Existing",
             FileUrl = relativePath.Replace('\\', '/'),
             FileType = "pdf",
+            ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+            ChunkSize = DocumentChunkingDefaults.RecursiveChunkSize,
+            ChunkOverlap = DocumentChunkingDefaults.RecursiveChunkOverlap,
             UploadedTeacher = teacherId,
             UploadedBy = uploadedByUserId ?? teacherId,
             Status = "completed"
