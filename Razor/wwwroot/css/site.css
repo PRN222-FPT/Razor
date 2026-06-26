@@ -1,20 +1,20 @@
 :root {
-  --app-primary: #0054a6;
-  --app-primary-dark: #003b76;
-  --app-blue: #0054a6;
-  --app-blue-soft: #d6e3ff;
+  --app-primary: #005fb8;
+  --app-primary-dark: #004a92;
+  --app-blue: #005fb8;
+  --app-blue-soft: #e8f1ff;
   --app-ink: #191c1e;
   --app-muted: #64748b;
-  --app-border: #dbe3ea;
-  --app-surface: #f7f9fb;
+  --app-border: #e5ebf2;
+  --app-surface: #fbfdff;
   --app-panel: #ffffff;
-  --app-panel-soft: #f2f6fb;
+  --app-panel-soft: #f4f8fd;
   --app-success: #147a4f;
   --app-warning: #9a4d00;
   --app-danger: #ba1a1a;
   --app-radius: 16px;
   --app-radius-control: 8px;
-  --app-shadow: 0 12px 32px rgba(25, 28, 30, 0.08);
+  --app-shadow: 0 10px 28px rgba(25, 28, 30, 0.05);
 }
 
 
@@ -32,7 +32,8 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background: var(--app-surface);
+  background:
+    linear-gradient(180deg, #fbfdff 0%, #f5f9ff 100%);
   color: var(--app-ink);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -75,8 +76,8 @@ textarea:focus {
   position: sticky;
   top: 0;
   z-index: 20;
-  border-bottom: 1px solid rgba(219, 227, 234, 0.86);
-  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(229, 235, 242, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(14px);
 }
 
@@ -113,7 +114,7 @@ textarea:focus {
 }
 
 .app-nav .nav-link:hover {
-  background: var(--app-panel-soft);
+  background: #f7fbff;
   color: var(--app-blue);
 }
 
@@ -146,7 +147,7 @@ textarea:focus {
 
 .hero-band {
   background:
-    linear-gradient(135deg, rgba(0, 84, 166, 0.12), rgba(30, 58, 138, 0.08)),
+    linear-gradient(135deg, rgba(0, 95, 184, 0.08), rgba(232, 241, 255, 0.86)),
     var(--app-surface);
   padding: 54px 0 28px;
 }
@@ -212,14 +213,14 @@ textarea:focus {
 
 .app-btn-secondary {
   background: white;
-  border-color: rgba(0, 84, 166, 0.24);
+  border-color: rgba(0, 95, 184, 0.18);
   color: var(--app-blue);
 }
 
 .app-btn-secondary:hover {
   background: var(--app-blue-soft);
-  border-color: var(--app-blue);
-  color: #003b77;
+  border-color: rgba(0, 95, 184, 0.36);
+  color: #004a92;
 }
 
 .hero-snapshot,
@@ -8314,19 +8315,19 @@ textarea::placeholder,
 
 /* Global softness refinement pass across all screens. */
 :root {
-  --app-primary: #86dc63;
-  --app-primary-dark: #6fc24d;
-  --app-primary-soft: #f2faec;
-  --app-primary-soft-strong: #e9f7df;
-  --app-border: #e8ebe7;
-  --app-surface: #f7f8f6;
+  --app-primary: #005fb8;
+  --app-primary-dark: #004a92;
+  --app-primary-soft: #eaf2ff;
+  --app-primary-soft-strong: #d9eaff;
+  --app-border: #e5ebf2;
+  --app-surface: #fbfdff;
   --app-panel: #ffffff;
-  --app-panel-soft: #fcfdfb;
+  --app-panel-soft: #f4f8fd;
   --app-radius: 28px;
   --app-radius-card: 32px;
-  --app-shadow: 0 20px 44px rgba(17, 24, 39, 0.05);
-  --app-shadow-soft: 0 10px 26px rgba(17, 24, 39, 0.045);
-  --app-focus: 0 0 0 0.26rem rgba(134, 220, 99, 0.18);
+  --app-shadow: 0 18px 38px rgba(17, 24, 39, 0.05);
+  --app-shadow-soft: 0 10px 24px rgba(17, 24, 39, 0.045);
+  --app-focus: 0 0 0 0.22rem rgba(0, 95, 184, 0.14);
 }
 
 body,
@@ -8335,9 +8336,9 @@ body,
 .admin-blue-body,
 .login-page-body {
   background:
-    radial-gradient(circle at top left, rgba(134, 220, 99, 0.1), transparent 24%),
-    radial-gradient(circle at top right, rgba(255, 255, 255, 0.75), transparent 28%),
-    linear-gradient(180deg, #fbfcf9 0%, var(--app-surface) 100%) !important;
+    radial-gradient(circle at top left, rgba(0, 95, 184, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.86), transparent 28%),
+    linear-gradient(180deg, #fbfdff 0%, var(--app-surface) 100%) !important;
 }
 
 .workspace-info-card,
@@ -8357,7 +8358,7 @@ body,
 .teacher-document-chunk,
 .student-chat-citation-dialog {
   border-radius: var(--app-radius-card) !important;
-  border: 1px solid rgba(232, 235, 231, 0.96) !important;
+  border: 1px solid rgba(228, 235, 243, 0.96) !important;
   box-shadow: var(--app-shadow) !important;
 }
 
@@ -8366,17 +8367,17 @@ body,
 .teacher-stitch-sidebar,
 .student-chat-sidebar {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(249, 251, 246, 0.92)) !important;
-  border-color: rgba(232, 235, 231, 0.96) !important;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 255, 0.98)) !important;
+  border-color: rgba(228, 235, 243, 0.96) !important;
 }
 
 .workspace-header,
 .admin-blue-topbar,
 .teacher-stitch-topbar,
 .student-chat-topbar {
-  background: rgba(255, 255, 255, 0.78) !important;
-  border-color: rgba(232, 235, 231, 0.92) !important;
-  box-shadow: 0 10px 26px rgba(17, 24, 39, 0.04) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(228, 235, 243, 0.96) !important;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.045) !important;
 }
 
 .workspace-nav a,
@@ -8444,8 +8445,8 @@ button {
 .login-submit,
 .workspace-header-button:not(.secondary),
 .btn-primary {
-  background: linear-gradient(135deg, var(--app-primary), #b5ec95) !important;
-  box-shadow: 0 14px 30px rgba(134, 220, 99, 0.2) !important;
+  background: linear-gradient(135deg, var(--app-primary), #2f7bd2) !important;
+  box-shadow: 0 12px 24px rgba(0, 95, 184, 0.14) !important;
 }
 
 .admin-blue-primary-button:hover,
@@ -8455,8 +8456,8 @@ button {
 .login-submit:hover,
 .workspace-header-button:not(.secondary):hover,
 .btn-primary:hover {
-  background: linear-gradient(135deg, var(--app-primary-dark), #a4e581) !important;
-  box-shadow: 0 16px 34px rgba(134, 220, 99, 0.22) !important;
+  background: linear-gradient(135deg, var(--app-primary-dark), #1f69bf) !important;
+  box-shadow: 0 14px 28px rgba(0, 95, 184, 0.18) !important;
 }
 
 .input-shell .form-control,
@@ -8469,8 +8470,8 @@ button {
 .student-chat-composer textarea,
 .admin-blue-table-search input {
   border-radius: 20px !important;
-  background: rgba(252, 253, 251, 0.96) !important;
-  border-color: rgba(232, 235, 231, 0.98) !important;
+  background: #ffffff !important;
+  border-color: rgba(210, 220, 232, 0.94) !important;
 }
 
 .student-chat-composer-card {
@@ -8483,20 +8484,20 @@ button {
 .admin-blue-teacher-picker,
 .admin-blue-subject-list {
   border-radius: 28px !important;
-  border-color: rgba(232, 235, 231, 0.96) !important;
-  background: rgba(252, 253, 251, 0.84) !important;
+  border-color: rgba(228, 235, 243, 0.96) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
 }
 
 .teacher-stitch-table th,
 .teacher-stitch-table td,
 .admin-blue-users-table th,
 .admin-blue-users-table td {
-  border-color: rgba(232, 235, 231, 0.9) !important;
+  border-color: rgba(228, 235, 243, 0.92) !important;
 }
 
 .teacher-stitch-table tbody tr:hover,
 .admin-blue-users-table tbody tr:hover {
-  background: rgba(134, 220, 99, 0.06) !important;
+  background: rgba(0, 95, 184, 0.04) !important;
 }
 
 .admin-blue-alert,
@@ -8513,6 +8514,15 @@ button {
 .student-chat-ai-bubble {
   border-radius: 24px 24px 24px 10px !important;
   box-shadow: var(--app-shadow-soft) !important;
+}
+
+.student-chat-citation-chip {
+  background: #f7fbff !important;
+  color: #005fb8 !important;
+}
+
+.student-chat-citation-chip:hover {
+  background: #edf4ff !important;
 }
 
 .admin-blue-metric,
