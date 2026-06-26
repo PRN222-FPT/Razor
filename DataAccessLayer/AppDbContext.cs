@@ -171,6 +171,8 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => e.ChapterId, "idx_documents_chapter");
 
+            entity.HasIndex(e => e.ChapterId, "documents_chapter_id_key").IsUnique();
+
             entity.HasIndex(e => e.SubjectId, "idx_documents_subject");
 
             entity.Property(e => e.DocumentId)

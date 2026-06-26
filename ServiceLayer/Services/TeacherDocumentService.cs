@@ -3,6 +3,7 @@ using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Npgsql;
 using ServiceLayer.DTOs;
 using ServiceLayer.Interfaces;
 
@@ -31,11 +32,12 @@ public sealed class TeacherDocumentService(
         }
 
         var allowedSubjectIds = await GetAllowedSubjectIdsAsync(teacher.TeacherId, cancellationToken);
+        var managedSubjectIds = await GetManagedSubjectIdsAsync(teacher.TeacherId, cancellationToken);
 
         var subjects = await unitOfWork.Repository<Subject>()
             .Query()
             .AsNoTracking()
-            .Where(subject => allowedSubjectIds.Contains(subject.SubjectId))
+            .Where(subject => managedSubjectIds.Contains(subject.SubjectId))
             .OrderBy(subject => subject.SubjectCode)
             .ThenBy(subject => subject.SubjectName)
             .Select(subject => new TeacherUploadSubjectDto(
@@ -62,7 +64,8 @@ public sealed class TeacherDocumentService(
                 document.UploadedByNavigation != null ? document.UploadedByNavigation.FullName : "Unknown",
                 document.CreatedAt,
                 string.IsNullOrWhiteSpace(document.Status) ? PendingStatus : document.Status,
-                document.FileType))
+                document.FileType,
+                managedSubjectIds.Contains(document.SubjectId)))
             .ToListAsync(cancellationToken);
 
         var recentDocuments = documents
@@ -78,7 +81,8 @@ public sealed class TeacherDocumentService(
                 document.UploadedByName,
                 document.CreatedAt,
                 document.Status,
-                document.FileType))
+                document.FileType,
+                document.CanManage))
             .ToList();
 
         var totalDocuments = await documentsQuery.CountAsync(cancellationToken);
@@ -114,6 +118,7 @@ public sealed class TeacherDocumentService(
         }
 
         var allowedSubjectIds = await GetAllowedSubjectIdsAsync(teacher.TeacherId, cancellationToken);
+        var managedSubjectIds = await GetManagedSubjectIdsAsync(teacher.TeacherId, cancellationToken);
         var documents = await BuildAccessibleDocumentsQuery(allowedSubjectIds)
             .OrderByDescending(document => document.CreatedAt)
             .ThenByDescending(document => document.DocumentId)
@@ -129,7 +134,8 @@ public sealed class TeacherDocumentService(
                 document.UploadedByNavigation != null ? document.UploadedByNavigation.FullName : "Unknown",
                 document.CreatedAt,
                 string.IsNullOrWhiteSpace(document.Status) ? PendingStatus : document.Status,
-                document.FileType))
+                document.FileType,
+                managedSubjectIds.Contains(document.SubjectId)))
             .ToListAsync(cancellationToken);
 
         return new TeacherDocumentListDto(documents
@@ -145,7 +151,8 @@ public sealed class TeacherDocumentService(
                 document.UploadedByName,
                 document.CreatedAt,
                 document.Status,
-                document.FileType))
+                document.FileType,
+                document.CanManage))
             .ToList());
     }
 
@@ -238,16 +245,18 @@ public sealed class TeacherDocumentService(
             return UploadTeacherDocumentResult.Failure("Teacher profile was not found for this account.");
         }
 
-        var canUploadSubject = await unitOfWork.Repository<TeacherSubject>()
+        var canManageSubject = await unitOfWork.Repository<TeacherSubject>()
             .Query()
             .AsNoTracking()
             .AnyAsync(
                 teacherSubject => teacherSubject.TeacherId == teacher.TeacherId
-                    && teacherSubject.SubjectId == request.SubjectId,
+                    && teacherSubject.SubjectId == request.SubjectId
+                    && teacherSubject.IsHeadOfDepartment,
                 cancellationToken);
-        if (!canUploadSubject)
+        if (!canManageSubject)
         {
-            return UploadTeacherDocumentResult.Failure("You do not have permission to upload documents for the selected subject.");
+            return UploadTeacherDocumentResult.Failure(
+                "Only the header teacher for this subject can upload chapter documents.");
         }
 
         var subjectExists = await unitOfWork.Repository<Subject>()
@@ -259,20 +268,20 @@ public sealed class TeacherDocumentService(
             return UploadTeacherDocumentResult.Failure("The selected subject does not exist.");
         }
 
-        var subjectHasDocument = await unitOfWork.Repository<Document>()
-            .Query()
-            .AsNoTracking()
-            .AnyAsync(document => document.SubjectId == request.SubjectId, cancellationToken);
-        if (subjectHasDocument)
-        {
-            return UploadTeacherDocumentResult.Failure(
-                "This subject already has a document. Delete the old document before uploading a new one.");
-        }
-
         var chapter = await GetOrCreateChapterAsync(
             request.SubjectId,
             request.ChapterTitle,
             cancellationToken);
+
+        var chapterHasDocument = await unitOfWork.Repository<Document>()
+            .Query()
+            .AsNoTracking()
+            .AnyAsync(document => document.ChapterId == chapter.ChapterId, cancellationToken);
+        if (chapterHasDocument)
+        {
+            return UploadTeacherDocumentResult.Failure(
+                "This chapter already has a document. Delete the old chapter document before uploading a new one.");
+        }
 
         var documentId = Guid.NewGuid();
         var relativeFilePath = BuildRelativeFilePath(request.SubjectId, documentId, extension);
@@ -324,6 +333,44 @@ public sealed class TeacherDocumentService(
                 CreateNotification(documentId, teacher.TeacherId, QueuedStatus),
                 cancellationToken);
         }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "documents_chapter_id_key"))
+        {
+            if (fileCreated)
+            {
+                DeleteFileBestEffort(absoluteFilePath);
+            }
+
+            return UploadTeacherDocumentResult.Failure(
+                "This chapter already has a document. Delete the old chapter document before uploading a new one.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(
+            ex,
+            "documents_subject_id_key",
+            "idx_documents_subject"))
+        {
+            if (fileCreated)
+            {
+                DeleteFileBestEffort(absoluteFilePath);
+            }
+
+            logger.LogWarning(
+                ex,
+                "Teacher document upload hit legacy one-document-per-subject constraint. SubjectId={SubjectId}",
+                request.SubjectId);
+
+            return UploadTeacherDocumentResult.Failure(
+                "The database still has the old one-document-per-subject constraint. Run DataAccessLayer/Scripts/20260626_allow_multiple_subject_documents_by_chapter.sql, then try again.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "chapters_subject_normalized_title_key"))
+        {
+            if (fileCreated)
+            {
+                DeleteFileBestEffort(absoluteFilePath);
+            }
+
+            return UploadTeacherDocumentResult.Failure(
+                "This chapter already exists for the selected subject. Delete the old chapter document before uploading a new one.");
+        }
         catch
         {
             if (fileCreated)
@@ -362,6 +409,7 @@ public sealed class TeacherDocumentService(
         }
 
         var allowedSubjectIds = await GetAllowedSubjectIdsAsync(teacher.TeacherId, cancellationToken);
+        var managedSubjectIds = await GetManagedSubjectIdsAsync(teacher.TeacherId, cancellationToken);
         var document = await unitOfWork.Repository<Document>()
             .Query()
             .Include(item => item.Chunks)
@@ -375,13 +423,14 @@ public sealed class TeacherDocumentService(
             return DeleteTeacherDocumentResult.Failure("Document was not found or you do not have permission to delete it.");
         }
 
-        if (document.UploadedBy != currentUserId)
+        if (!managedSubjectIds.Contains(document.SubjectId))
         {
-            return DeleteTeacherDocumentResult.Failure("Only the teacher who uploaded this document can delete it.");
+            return DeleteTeacherDocumentResult.Failure(
+                "Only the header teacher for this subject can delete chapter documents.");
         }
 
         var filePath = TryResolveStoredFilePath(uploadOptions.Value.StorageRootPath, document.FileUrl);
-        await vectorStore.DeleteBySubjectAsync(document.SubjectId, cancellationToken);
+        await vectorStore.DeleteByDocumentAsync(document.DocumentId, cancellationToken);
         DeleteExistingSubjectDocuments([document]);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -447,6 +496,19 @@ public sealed class TeacherDocumentService(
             .ToListAsync(cancellationToken);
     }
 
+    private async Task<IReadOnlyList<Guid>> GetManagedSubjectIdsAsync(
+        Guid teacherId,
+        CancellationToken cancellationToken)
+    {
+        return await unitOfWork.Repository<TeacherSubject>()
+            .Query()
+            .AsNoTracking()
+            .Where(teacherSubject => teacherSubject.TeacherId == teacherId
+                && teacherSubject.IsHeadOfDepartment)
+            .Select(teacherSubject => teacherSubject.SubjectId)
+            .ToListAsync(cancellationToken);
+    }
+
     private IQueryable<Document> BuildAccessibleDocumentsQuery(IReadOnlyList<Guid> allowedSubjectIds)
     {
         return unitOfWork.Repository<Document>()
@@ -469,21 +531,27 @@ public sealed class TeacherDocumentService(
 
         var chapters = unitOfWork.Repository<Chapter>();
         var existingChapter = await chapters.Query()
-            .SingleOrDefaultAsync(
-                chapter => chapter.SubjectId == subjectId
-                    && chapter.ChapterTitle.ToLower() == chapterTitle.ToLower(),
-                cancellationToken);
+            .Where(chapter => chapter.SubjectId == subjectId
+                && chapter.ChapterTitle.Trim().ToLower() == chapterTitle.ToLower())
+            .OrderBy(chapter => chapter.ChapterOrder ?? int.MaxValue)
+            .ThenBy(chapter => chapter.CreatedAt)
+            .ThenBy(chapter => chapter.ChapterId)
+            .FirstOrDefaultAsync(cancellationToken);
         if (existingChapter is not null)
         {
             return existingChapter;
         }
+
+        var nextChapterOrder = await chapters.Query()
+            .Where(chapter => chapter.SubjectId == subjectId)
+            .MaxAsync(chapter => (int?)chapter.ChapterOrder, cancellationToken) ?? 0;
 
         var chapter = new Chapter
         {
             ChapterId = Guid.NewGuid(),
             SubjectId = subjectId,
             ChapterTitle = chapterTitle,
-            ChapterOrder = 1,
+            ChapterOrder = nextChapterOrder + 1,
             CreatedAt = CurrentTimestamp()
         };
 
@@ -563,6 +631,26 @@ public sealed class TeacherDocumentService(
     private static DateTime CurrentTimestamp()
     {
         return DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+    }
+
+    private static bool IsUniqueConstraintViolation(
+        DbUpdateException exception,
+        params string[] constraintNames)
+    {
+        if (exception.InnerException is PostgresException postgresException
+            && postgresException.SqlState == PostgresErrorCodes.UniqueViolation)
+        {
+            return constraintNames.Any(
+                constraintName => string.Equals(
+                    postgresException.ConstraintName,
+                    constraintName,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        var errorText = exception.ToString();
+
+        return constraintNames.Any(
+            constraintName => errorText.Contains(constraintName, StringComparison.OrdinalIgnoreCase));
     }
 
     private static TeacherDocumentDashboardDto EmptyDashboard()
@@ -667,5 +755,6 @@ public sealed class TeacherDocumentService(
         string UploadedByName,
         DateTime? CreatedAt,
         string Status,
-        string? FileType);
+        string? FileType,
+        bool CanManage);
 }

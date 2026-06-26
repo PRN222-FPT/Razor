@@ -72,7 +72,7 @@
 
         <div class="teacher-stitch-alert success" role="status" data-subject-sync-message hidden></div>
         <div class="teacher-stitch-alert warning" role="alert" data-no-subject-warning @(!hasUploadSubjects ? null : "hidden")>
-            You do not have any assigned subjects yet. Contact an administrator before uploading documents.
+            You are not the header teacher for any subject yet. Contact an administrator before uploading chapter documents.
         </div>
 
         <section class="teacher-stitch-analytics" aria-label="Document analytics">
@@ -95,7 +95,7 @@
                     <span class="material-symbols-outlined" aria-hidden="true">description</span>
                 </div>
                 <strong class="teacher-stitch-big-number" data-teacher-total-documents>@Model.Dashboard.TotalDocuments.ToString("N0")</strong>
-                <p>@(Model.Dashboard.TotalDocuments == 0 ? "No documents uploaded yet" : "Documents uploaded by you")</p>
+                <p>@(Model.Dashboard.TotalDocuments == 0 ? "No documents uploaded yet" : "Documents across your assigned subjects")</p>
             </article>
 
             <article class="teacher-stitch-glass-card">
@@ -136,7 +136,7 @@
                         <input asp-for="UploadDocument.ChapterTitle" data-upload-field autocomplete="off" placeholder="General" disabled="@(!hasUploadSubjects)" />
                     </label>
                     <span asp-validation-for="UploadDocument.ChapterTitle" class="teacher-stitch-field-error"></span>
-                    <p>Select the subject and optional chapter for the document. Uploads are queued for background processing.</p>
+                    <p>Select the subject and chapter for the document. Only header teachers can upload, and each chapter keeps one document.</p>
                 </article>
             </div>
 
@@ -244,9 +244,9 @@
                                             <form method="post"
                                                   asp-page-handler="Delete"
                                                   asp-route-documentId="@document.DocumentId"
-                                                  onsubmit="return confirm('Delete this document before uploading a replacement?');">
+                                                  onsubmit="return confirm('Delete this chapter document before uploading a replacement?');">
                                                 <button type="submit"
-                                                        title="@(Model.CanDelete(document) ? "Delete document" : "Only the uploading teacher can delete this document.")"
+                                                        title="@(Model.CanDelete(document) ? "Delete document" : "Only the header teacher can delete chapter documents for this subject.")"
                                                         aria-label="Delete document"
                                                         disabled="@(!Model.CanDelete(document))">
                                                     <span class="material-symbols-outlined" aria-hidden="true">delete</span>

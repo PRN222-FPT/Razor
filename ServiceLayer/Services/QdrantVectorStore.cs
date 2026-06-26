@@ -49,8 +49,8 @@ public sealed class QdrantVectorStore(
         }
     }
 
-    public async Task DeleteBySubjectAsync(
-        Guid subjectId,
+    public async Task DeleteByDocumentAsync(
+        Guid documentId,
         CancellationToken cancellationToken = default)
     {
         var options = qdrantOptions.Value;
@@ -63,8 +63,8 @@ public sealed class QdrantVectorStore(
                 new QdrantFilter(
                 [
                     new QdrantFieldCondition(
-                        "subjectId",
-                        new QdrantMatchValue(subjectId.ToString()))
+                        "documentId",
+                        new QdrantMatchValue(documentId.ToString()))
                 ])));
 
         using var response = await httpClient.SendAsync(request, cancellationToken);

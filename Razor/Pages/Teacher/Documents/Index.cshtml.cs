@@ -66,12 +66,7 @@ public sealed class IndexModel(
 
     public bool CanDelete(TeacherDocumentRowDto document)
     {
-        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
-        {
-            return false;
-        }
-
-        return document.UploadedById == currentUserId;
+        return document.CanManage;
     }
 
     public string GetStatusClass(TeacherDocumentRowDto document)

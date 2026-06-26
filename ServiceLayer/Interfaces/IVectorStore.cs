@@ -8,8 +8,8 @@ public interface IVectorStore
         IReadOnlyList<EmbeddedDocumentChunk> chunks,
         CancellationToken cancellationToken = default);
 
-    Task DeleteBySubjectAsync(
-        Guid subjectId,
+    Task DeleteByDocumentAsync(
+        Guid documentId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<VectorSearchResult>> SearchAsync(
