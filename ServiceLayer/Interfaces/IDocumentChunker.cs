@@ -4,5 +4,7 @@ namespace ServiceLayer.Interfaces;
 
 public interface IDocumentChunker
 {
-    IReadOnlyList<DocumentChunkDraft> CreateChunks(ParsedDocumentContent content);
+    IReadOnlyList<DocumentChunkDraft> CreateChunks(
+        ParsedDocumentContent content,
+        DocumentChunkingSettings settings);
 }

@@ -1,5 +1,6 @@
 (function () {
   initializeFilePicker();
+  initializeChunkingControls();
 
   if (!window.signalR) {
     return;
@@ -318,5 +319,25 @@
     });
     fileInput.addEventListener('change', setFileName);
     setFileName();
+  }
+
+  function initializeChunkingControls() {
+    const strategySelect = document.querySelector('[data-chunking-strategy-select]');
+    const fixedFields = document.querySelector('[data-fixed-chunking-fields]');
+    const fixedSizeInput = document.querySelector('[data-fixed-chunk-size]');
+    const fixedOverlapInput = document.querySelector('[data-fixed-chunk-overlap]');
+    if (!strategySelect || !fixedFields || !fixedSizeInput || !fixedOverlapInput) {
+      return;
+    }
+
+    const updateVisibility = () => {
+      const isFixed = strategySelect.value === 'fixed_sized';
+      fixedFields.hidden = !isFixed;
+      fixedSizeInput.disabled = strategySelect.disabled || !isFixed;
+      fixedOverlapInput.disabled = strategySelect.disabled || !isFixed;
+    };
+
+    strategySelect.addEventListener('change', updateVisibility);
+    updateVisibility();
   }
 }());

@@ -201,6 +201,9 @@ public sealed class TeacherDocumentService(
             document.CreatedAt,
             status,
             document.FileType,
+            NormalizeChunkingStrategy(document.ChunkingStrategy),
+            ResolveChunkSize(document),
+            ResolveChunkOverlap(document),
             latestJob?.ErrorMessage,
             document.Chunks
                 .OrderBy(chunk => chunk.ChunkIndex)
@@ -268,6 +271,13 @@ public sealed class TeacherDocumentService(
             return UploadTeacherDocumentResult.Failure("The selected subject does not exist.");
         }
 
+        var chunkingSettings = TryResolveChunkingSettings(request);
+        if (chunkingSettings is null)
+        {
+            return UploadTeacherDocumentResult.Failure(
+                "Choose a valid chunking strategy. Fixed-sized chunking requires chunk size >= 200 and overlap between 0 and half of the size.");
+        }
+
         var chapter = await GetOrCreateChapterAsync(
             request.SubjectId,
             request.ChapterTitle,
@@ -310,6 +320,9 @@ public sealed class TeacherDocumentService(
                 Title = NormalizeTitle(request.Title, request.OriginalFileName),
                 FileUrl = relativeFilePath.Replace('\\', '/'),
                 FileType = extension.TrimStart('.'),
+                ChunkingStrategy = chunkingSettings.Strategy,
+                ChunkSize = chunkingSettings.ChunkSize,
+                ChunkOverlap = chunkingSettings.ChunkOverlap,
                 UploadedBy = request.UserId,
                 UploadedTeacher = teacher.TeacherId,
                 Status = PendingStatus,
@@ -631,6 +644,89 @@ public sealed class TeacherDocumentService(
     private static DateTime CurrentTimestamp()
     {
         return DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+    }
+
+    private static DocumentChunkingSettings? TryResolveChunkingSettings(UploadTeacherDocumentRequest request)
+    {
+        var strategy = NormalizeChunkingStrategy(request.ChunkingStrategy);
+
+        return strategy switch
+        {
+            DocumentChunkingStrategies.FixedSized => TryCreateFixedChunkingSettings(
+                request.ChunkSize,
+                request.ChunkOverlap),
+            DocumentChunkingStrategies.Semantic => new DocumentChunkingSettings(
+                DocumentChunkingStrategies.Semantic,
+                DocumentChunkingDefaults.SemanticChunkSize,
+                DocumentChunkingDefaults.SemanticChunkOverlap),
+            DocumentChunkingStrategies.Recursive => new DocumentChunkingSettings(
+                DocumentChunkingStrategies.Recursive,
+                DocumentChunkingDefaults.RecursiveChunkSize,
+                DocumentChunkingDefaults.RecursiveChunkOverlap),
+            _ => null
+        };
+    }
+
+    private static DocumentChunkingSettings? TryCreateFixedChunkingSettings(int? requestedChunkSize, int? requestedChunkOverlap)
+    {
+        if (!requestedChunkSize.HasValue || !requestedChunkOverlap.HasValue)
+        {
+            return null;
+        }
+
+        var chunkSize = requestedChunkSize.Value;
+        var chunkOverlap = requestedChunkOverlap.Value;
+        if (chunkSize < 200 || chunkOverlap < 0 || chunkOverlap > chunkSize / 2)
+        {
+            return null;
+        }
+
+        return new DocumentChunkingSettings(
+            DocumentChunkingStrategies.FixedSized,
+            chunkSize,
+            chunkOverlap);
+    }
+
+    private static string NormalizeChunkingStrategy(string? strategy)
+    {
+        return strategy?.Trim().ToLowerInvariant() switch
+        {
+            DocumentChunkingStrategies.Semantic => DocumentChunkingStrategies.Semantic,
+            DocumentChunkingStrategies.FixedSized => DocumentChunkingStrategies.FixedSized,
+            _ => DocumentChunkingStrategies.Recursive
+        };
+    }
+
+    private static int ResolveChunkSize(Document document)
+    {
+        return NormalizeChunkingStrategy(document.ChunkingStrategy) switch
+        {
+            DocumentChunkingStrategies.FixedSized when document.ChunkSize >= 200 => document.ChunkSize,
+            DocumentChunkingStrategies.Semantic when document.ChunkSize > 0 => document.ChunkSize,
+            DocumentChunkingStrategies.Recursive when document.ChunkSize > 0 => document.ChunkSize,
+            DocumentChunkingStrategies.FixedSized => DocumentChunkingDefaults.FixedChunkSize,
+            DocumentChunkingStrategies.Semantic => DocumentChunkingDefaults.SemanticChunkSize,
+            _ => DocumentChunkingDefaults.RecursiveChunkSize
+        };
+    }
+
+    private static int ResolveChunkOverlap(Document document)
+    {
+        return NormalizeChunkingStrategy(document.ChunkingStrategy) switch
+        {
+            DocumentChunkingStrategies.FixedSized
+                when document.ChunkSize >= 200
+                     && document.ChunkOverlap >= 0
+                     && document.ChunkOverlap <= document.ChunkSize / 2 => document.ChunkOverlap,
+            DocumentChunkingStrategies.Semantic when document.ChunkOverlap >= 0 => document.ChunkOverlap,
+            DocumentChunkingStrategies.Recursive
+                when document.ChunkSize > 0
+                     && document.ChunkOverlap >= 0
+                     && document.ChunkOverlap <= document.ChunkSize / 2 => document.ChunkOverlap,
+            DocumentChunkingStrategies.FixedSized => DocumentChunkingDefaults.FixedChunkOverlap,
+            DocumentChunkingStrategies.Semantic => DocumentChunkingDefaults.SemanticChunkOverlap,
+            _ => DocumentChunkingDefaults.RecursiveChunkOverlap
+        };
     }
 
     private static bool IsUniqueConstraintViolation(

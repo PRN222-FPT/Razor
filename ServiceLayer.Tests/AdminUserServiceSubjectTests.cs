@@ -329,6 +329,9 @@ public sealed class AdminUserServiceSubjectTests
             Title = "Week 1 Slides",
             FileUrl = "/docs/week1.pdf",
             FileType = "pdf",
+            ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+            ChunkSize = DocumentChunkingDefaults.RecursiveChunkSize,
+            ChunkOverlap = DocumentChunkingDefaults.RecursiveChunkOverlap,
             Status = "completed"
         });
         context.Chunks.Add(new Chunk

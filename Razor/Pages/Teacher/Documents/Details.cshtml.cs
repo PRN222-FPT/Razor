@@ -69,4 +69,14 @@ public sealed class DetailsModel(
             _ => "indexing"
         };
     }
+
+    public string FormatChunkingStrategy()
+    {
+        return Document?.ChunkingStrategy switch
+        {
+            DocumentChunkingStrategies.Semantic => "Semantic",
+            DocumentChunkingStrategies.FixedSized => "Fixed Sized",
+            _ => "Recursive"
+        };
+    }
 }

@@ -200,6 +200,9 @@ public sealed class RagChatServiceTests
                 Title = "Week 1 Slides",
                 FileUrl = "week1.pdf",
                 FileType = "pdf",
+                ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+                ChunkSize = DocumentChunkingDefaults.RecursiveChunkSize,
+                ChunkOverlap = DocumentChunkingDefaults.RecursiveChunkOverlap,
                 Status = "completed",
                 CreatedAt = new DateTime(2026, 6, 18, 10, 30, 0)
             },
@@ -211,6 +214,9 @@ public sealed class RagChatServiceTests
                 Title = "Week 2 Slides",
                 FileUrl = "week2.pdf",
                 FileType = "pdf",
+                ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+                ChunkSize = DocumentChunkingDefaults.RecursiveChunkSize,
+                ChunkOverlap = DocumentChunkingDefaults.RecursiveChunkOverlap,
                 Status = "completed",
                 CreatedAt = new DateTime(2026, 6, 19, 9, 0, 0)
             });
@@ -478,6 +484,9 @@ public sealed class RagChatServiceTests
             ChapterId = chapterId,
             Title = "OOP Lecture",
             FileUrl = "oop.pdf",
+            ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+            ChunkSize = DocumentChunkingDefaults.RecursiveChunkSize,
+            ChunkOverlap = DocumentChunkingDefaults.RecursiveChunkOverlap,
             Status = "completed"
         });
         context.Chunks.Add(new Chunk

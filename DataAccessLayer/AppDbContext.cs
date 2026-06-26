@@ -179,6 +179,11 @@ public partial class AppDbContext : DbContext
                 .HasDefaultValueSql("uuid_generate_v4()")
                 .HasColumnName("document_id");
             entity.Property(e => e.ChapterId).HasColumnName("chapter_id");
+            entity.Property(e => e.ChunkingStrategy)
+                .HasMaxLength(50)
+                .HasColumnName("chunking_strategy");
+            entity.Property(e => e.ChunkOverlap).HasColumnName("chunk_overlap");
+            entity.Property(e => e.ChunkSize).HasColumnName("chunk_size");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("timestamp without time zone")

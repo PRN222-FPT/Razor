@@ -12,8 +12,20 @@ public sealed class DashboardModel(
     ITeacherDocumentService teacherDocumentService,
     IOptions<TeacherDocumentUploadOptions> uploadOptions) : PageModel
 {
+    private static readonly IReadOnlyList<ChunkingStrategyOption> ChunkingStrategyOptions =
+    [
+        new(DocumentChunkingStrategies.Recursive, "Recursive"),
+        new(DocumentChunkingStrategies.Semantic, "Semantic"),
+        new(DocumentChunkingStrategies.FixedSized, "Fixed Sized")
+    ];
+
     [BindProperty]
-    public UploadDocumentInputModel UploadDocument { get; set; } = new();
+    public UploadDocumentInputModel UploadDocument { get; set; } = new()
+    {
+        ChunkingStrategy = DocumentChunkingStrategies.Recursive,
+        FixedChunkSize = DocumentChunkingDefaults.FixedChunkSize,
+        FixedChunkOverlap = DocumentChunkingDefaults.FixedChunkOverlap
+    };
 
     [TempData]
     public string? SuccessMessage { get; set; }
@@ -22,6 +34,8 @@ public sealed class DashboardModel(
         new([], [], 0, 0, 0, 0);
 
     public string MaxUploadSizeLabel => FormatBytes(uploadOptions.Value.MaxFileSizeBytes);
+
+    public IReadOnlyList<ChunkingStrategyOption> AvailableChunkingStrategies => ChunkingStrategyOptions;
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -36,6 +50,8 @@ public sealed class DashboardModel(
                 $"{nameof(UploadDocument)}.{nameof(UploadDocument.File)}",
                 "Please choose a file to upload.");
         }
+
+        ValidateChunkingSelection();
 
         if (!ModelState.IsValid)
         {
@@ -60,6 +76,9 @@ public sealed class DashboardModel(
                 UploadDocument.Title,
                 UploadDocument.SubjectId,
                 UploadDocument.ChapterTitle,
+                UploadDocument.ChunkingStrategy,
+                UploadDocument.FixedChunkSize,
+                UploadDocument.FixedChunkOverlap,
                 UploadDocument.File.FileName,
                 UploadDocument.File.Length,
                 uploadStream),
@@ -196,6 +215,46 @@ public sealed class DashboardModel(
         Dashboard = await teacherDocumentService.GetDashboardAsync(email, cancellationToken);
     }
 
+    private void ValidateChunkingSelection()
+    {
+        var strategy = UploadDocument.ChunkingStrategy?.Trim().ToLowerInvariant();
+        if (!DocumentChunkingStrategies.All.Contains(strategy))
+        {
+            ModelState.AddModelError(
+                $"{nameof(UploadDocument)}.{nameof(UploadDocument.ChunkingStrategy)}",
+                "Please choose a valid chunking strategy.");
+            return;
+        }
+
+        if (!string.Equals(strategy, DocumentChunkingStrategies.FixedSized, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!UploadDocument.FixedChunkSize.HasValue || UploadDocument.FixedChunkSize.Value < 200)
+        {
+            ModelState.AddModelError(
+                $"{nameof(UploadDocument)}.{nameof(UploadDocument.FixedChunkSize)}",
+                "Chunk size must be at least 200.");
+        }
+
+        if (!UploadDocument.FixedChunkOverlap.HasValue || UploadDocument.FixedChunkOverlap.Value < 0)
+        {
+            ModelState.AddModelError(
+                $"{nameof(UploadDocument)}.{nameof(UploadDocument.FixedChunkOverlap)}",
+                "Chunk overlap must be 0 or greater.");
+            return;
+        }
+
+        if (UploadDocument.FixedChunkSize.HasValue
+            && UploadDocument.FixedChunkOverlap.Value > UploadDocument.FixedChunkSize.Value / 2)
+        {
+            ModelState.AddModelError(
+                $"{nameof(UploadDocument)}.{nameof(UploadDocument.FixedChunkOverlap)}",
+                "Chunk overlap cannot exceed half of the chunk size.");
+        }
+    }
+
     private static string FormatBytes(long bytes)
     {
         if (bytes <= 0)
@@ -221,7 +280,19 @@ public sealed class DashboardModel(
         [Display(Name = "Chapter")]
         public string? ChapterTitle { get; set; }
 
+        [Required(ErrorMessage = "Please choose a chunking strategy.")]
+        [Display(Name = "Chunking strategy")]
+        public string? ChunkingStrategy { get; set; }
+
+        [Display(Name = "Chunk size")]
+        public int? FixedChunkSize { get; set; }
+
+        [Display(Name = "Chunk overlap")]
+        public int? FixedChunkOverlap { get; set; }
+
         [Display(Name = "Document file")]
         public IFormFile? File { get; set; }
     }
+
+    public sealed record ChunkingStrategyOption(string Value, string Label);
 }
