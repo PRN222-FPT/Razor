@@ -20,14 +20,6 @@
         <a asp-page="/Teacher/Documents/Index">Documents</a>
     </nav>
     <div class="teacher-stitch-top-actions">
-        <a asp-page="/Account/ChangePassword" class="teacher-stitch-account-button">
-            <span class="material-symbols-outlined" aria-hidden="true">lock</span>
-            Change Password
-        </a>
-        <a asp-page="/Account/ForgotPassword" class="teacher-stitch-account-button teacher-stitch-account-button-secondary">
-            <span class="material-symbols-outlined" aria-hidden="true">key</span>
-            Forgot Password
-        </a>
         <form method="post" asp-page="/Index" asp-page-handler="Logout" class="teacher-stitch-logout-form">
             <button type="submit" class="teacher-stitch-logout-button">
                 <span class="material-symbols-outlined" aria-hidden="true">logout</span>
