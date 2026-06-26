@@ -88,7 +88,8 @@ public sealed record TeacherDocumentRowDto(
     string UploadedByName,
     DateTime? CreatedAt,
     string Status,
-    string? FileType);
+    string? FileType,
+    bool CanManage);
 
 public sealed record TeacherDocumentDetailsDto(
     Guid DocumentId,

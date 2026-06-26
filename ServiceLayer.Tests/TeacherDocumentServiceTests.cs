@@ -1,9 +1,8 @@
-using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
 using DataAccessLayer;
 using DataAccessLayer.Entities;
+using DataAccessLayer.Repositories;
 using DataAccessLayer.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,7 +17,7 @@ namespace ServiceLayer.Tests;
 public sealed class TeacherDocumentServiceTests
 {
     [Fact]
-    public async Task UploadAsync_BlocksWhenSubjectAlreadyHasDocumentation()
+    public async Task UploadAsync_BlocksWhenChapterAlreadyHasDocument()
     {
         var storageRoot = CreateTempDirectory();
         await using var context = CreateContext();
@@ -27,10 +26,15 @@ public sealed class TeacherDocumentServiceTests
         var oldDocumentId = Guid.NewGuid();
         var oldFilePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{oldDocumentId:N}.pdf");
         Directory.CreateDirectory(Path.GetDirectoryName(oldFilePath)!);
-        await File.WriteAllTextAsync(oldFilePath, "old subject file");
+        await File.WriteAllTextAsync(oldFilePath, "old chapter file");
 
-        SeedTeacher(context, teacherId, subjectId);
-        SeedDocument(context, oldDocumentId, subjectId, teacherId, RelativePath(storageRoot, oldFilePath));
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        SeedDocument(
+            context,
+            oldDocumentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, oldFilePath));
         await context.SaveChangesAsync();
 
         var vectorStore = new RecordingVectorStore();
@@ -41,32 +45,253 @@ public sealed class TeacherDocumentServiceTests
             teacherId,
             "teacher@example.com",
             subjectId,
-            "replacement.pdf"));
+            "replacement.pdf",
+            "General"));
 
         Assert.False(result.Succeeded);
-        Assert.Contains("already has a document", result.ErrorMessage);
-        Assert.Empty(vectorStore.DeletedSubjectIds);
+        Assert.Contains("chapter already has a document", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(vectorStore.DeletedDocumentIds);
         Assert.Empty(queue.EnqueuedDocumentIds);
         Assert.True(File.Exists(oldFilePath));
         Assert.True(await context.Documents.AnyAsync(document => document.DocumentId == oldDocumentId));
-        Assert.True(await context.Chunks.AnyAsync(chunk => chunk.DocumentId == oldDocumentId));
-        Assert.True(await context.ProcessingJobs.AnyAsync(job => job.DocumentId == oldDocumentId));
     }
 
     [Fact]
-    public async Task DeleteAsync_DeletesAssignedSubjectDocumentation()
+    public async Task UploadAsync_AllowsDifferentChapterForSameSubjectWhenTeacherIsHeader()
     {
         var storageRoot = CreateTempDirectory();
         await using var context = CreateContext();
         var subjectId = Guid.NewGuid();
         var teacherId = Guid.NewGuid();
+        var oldDocumentId = Guid.NewGuid();
+        var oldFilePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{oldDocumentId:N}.pdf");
+        Directory.CreateDirectory(Path.GetDirectoryName(oldFilePath)!);
+        await File.WriteAllTextAsync(oldFilePath, "existing general file");
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        SeedDocument(
+            context,
+            oldDocumentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, oldFilePath),
+            chapterTitle: "General",
+            chapterOrder: 1);
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(context, storageRoot, vectorStore, queue);
+
+        var result = await service.UploadAsync(CreateUploadRequest(
+            teacherId,
+            "teacher@example.com",
+            subjectId,
+            "chapter-2.pdf",
+            "Chapter 2"));
+
+        Assert.True(result.Succeeded);
+        Assert.Single(queue.EnqueuedDocumentIds);
+        Assert.Equal(result.DocumentId, queue.EnqueuedDocumentIds[0]);
+        Assert.Equal(2, await context.Documents.CountAsync(document => document.SubjectId == subjectId));
+
+        var chapters = await context.Chapters
+            .Where(chapter => chapter.SubjectId == subjectId)
+            .OrderBy(chapter => chapter.ChapterOrder)
+            .ToListAsync();
+        Assert.Equal(2, chapters.Count);
+        Assert.Equal("General", chapters[0].ChapterTitle);
+        Assert.Equal(1, chapters[0].ChapterOrder);
+        Assert.Equal("Chapter 2", chapters[1].ChapterTitle);
+        Assert.Equal(2, chapters[1].ChapterOrder);
+    }
+
+    [Fact]
+    public async Task UploadAsync_BlocksWhenTeacherIsNotSubjectHeader()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: false);
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(context, storageRoot, vectorStore, queue);
+
+        var result = await service.UploadAsync(CreateUploadRequest(
+            teacherId,
+            "teacher@example.com",
+            subjectId,
+            "chapter-1.pdf",
+            "General"));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("Only the header teacher", result.ErrorMessage);
+        Assert.Empty(queue.EnqueuedDocumentIds);
+    }
+
+    [Fact]
+    public async Task UploadAsync_DoesNotThrowWhenLegacyDuplicateChaptersExist()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var existingDocumentId = Guid.NewGuid();
+        var existingFilePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{existingDocumentId:N}.pdf");
+        Directory.CreateDirectory(Path.GetDirectoryName(existingFilePath)!);
+        await File.WriteAllTextAsync(existingFilePath, "general file");
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        SeedDocument(
+            context,
+            existingDocumentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, existingFilePath),
+            chapterTitle: "General",
+            chapterOrder: 1);
+        context.Chapters.Add(new Chapter
+        {
+            ChapterId = Guid.NewGuid(),
+            SubjectId = subjectId,
+            ChapterTitle = " General ",
+            ChapterOrder = 2,
+            CreatedAt = new DateTime(2026, 6, 26, 8, 0, 0)
+        });
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(context, storageRoot, vectorStore, queue);
+
+        var result = await service.UploadAsync(CreateUploadRequest(
+            teacherId,
+            "teacher@example.com",
+            subjectId,
+            "replacement.pdf",
+            "general"));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("chapter already has a document", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(queue.EnqueuedDocumentIds);
+    }
+
+    [Fact]
+    public async Task UploadAsync_ReturnsCompatibilityMessageWhenDatabaseStillHasLegacySubjectConstraint()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(
+            new ThrowingUnitOfWork(
+                context,
+                new DbUpdateException(
+                    "duplicate key value violates unique constraint \"documents_subject_id_key\"",
+                    new Exception("documents_subject_id_key"))),
+            storageRoot,
+            vectorStore,
+            queue);
+
+        var result = await service.UploadAsync(CreateUploadRequest(
+            teacherId,
+            "teacher@example.com",
+            subjectId,
+            "chapter-1.pdf",
+            "1"));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("old one-document-per-subject constraint", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(queue.EnqueuedDocumentIds);
+        Assert.Empty(vectorStore.DeletedDocumentIds);
+        Assert.Empty(Directory.GetFiles(storageRoot, "*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DeletesOnlySelectedDocumentAndVectors()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var firstDocumentId = Guid.NewGuid();
+        var secondDocumentId = Guid.NewGuid();
+        var firstFilePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{firstDocumentId:N}.pdf");
+        var secondFilePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{secondDocumentId:N}.pdf");
+        Directory.CreateDirectory(Path.GetDirectoryName(firstFilePath)!);
+        await File.WriteAllTextAsync(firstFilePath, "general file");
+        await File.WriteAllTextAsync(secondFilePath, "chapter 2 file");
+
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        SeedDocument(
+            context,
+            firstDocumentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, firstFilePath),
+            chapterTitle: "General",
+            chapterOrder: 1);
+        SeedDocument(
+            context,
+            secondDocumentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, secondFilePath),
+            chapterTitle: "Chapter 2",
+            chapterOrder: 2);
+        await context.SaveChangesAsync();
+
+        var vectorStore = new RecordingVectorStore();
+        var queue = new RecordingDocumentProcessingQueue();
+        var service = CreateService(context, storageRoot, vectorStore, queue);
+
+        var result = await service.DeleteAsync(teacherId, "teacher@example.com", firstDocumentId);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal([firstDocumentId], vectorStore.DeletedDocumentIds);
+        Assert.Empty(queue.EnqueuedDocumentIds);
+        Assert.False(File.Exists(firstFilePath));
+        Assert.True(File.Exists(secondFilePath));
+        Assert.False(await context.Documents.AnyAsync(document => document.DocumentId == firstDocumentId));
+        Assert.True(await context.Documents.AnyAsync(document => document.DocumentId == secondDocumentId));
+        Assert.False(await context.Chunks.AnyAsync(chunk => chunk.DocumentId == firstDocumentId));
+        Assert.True(await context.Chunks.AnyAsync(chunk => chunk.DocumentId == secondDocumentId));
+        Assert.False(await context.ProcessingJobs.AnyAsync(job => job.DocumentId == firstDocumentId));
+        Assert.True(await context.ProcessingJobs.AnyAsync(job => job.DocumentId == secondDocumentId));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_AllowsHeaderTeacherToDeleteDocumentUploadedByAnotherUser()
+    {
+        var storageRoot = CreateTempDirectory();
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var uploaderUserId = Guid.NewGuid();
         var documentId = Guid.NewGuid();
         var filePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{documentId:N}.pdf");
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        await File.WriteAllTextAsync(filePath, "old subject file");
+        await File.WriteAllTextAsync(filePath, "owner file");
 
-        SeedTeacher(context, teacherId, subjectId);
-        SeedDocument(context, documentId, subjectId, teacherId, RelativePath(storageRoot, filePath));
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
+        SeedUser(context, uploaderUserId, "Uploader", "uploader@example.com");
+        SeedDocument(
+            context,
+            documentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, filePath),
+            uploadedByUserId: uploaderUserId);
         await context.SaveChangesAsync();
 
         var vectorStore = new RecordingVectorStore();
@@ -76,30 +301,29 @@ public sealed class TeacherDocumentServiceTests
         var result = await service.DeleteAsync(teacherId, "teacher@example.com", documentId);
 
         Assert.True(result.Succeeded);
-        Assert.Equal([subjectId], vectorStore.DeletedSubjectIds);
-        Assert.Empty(queue.EnqueuedDocumentIds);
-        Assert.False(File.Exists(filePath));
+        Assert.Equal([documentId], vectorStore.DeletedDocumentIds);
         Assert.False(await context.Documents.AnyAsync(document => document.DocumentId == documentId));
-        Assert.False(await context.Chunks.AnyAsync(chunk => chunk.DocumentId == documentId));
-        Assert.False(await context.ProcessingJobs.AnyAsync(job => job.DocumentId == documentId));
     }
 
     [Fact]
-    public async Task DeleteAsync_BlocksWhenCurrentUserDidNotUploadDocument()
+    public async Task DeleteAsync_BlocksWhenTeacherIsNotSubjectHeader()
     {
         var storageRoot = CreateTempDirectory();
         await using var context = CreateContext();
         var subjectId = Guid.NewGuid();
         var teacherId = Guid.NewGuid();
-        var uploaderUserId = Guid.NewGuid();
         var documentId = Guid.NewGuid();
         var filePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{documentId:N}.pdf");
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
         await File.WriteAllTextAsync(filePath, "owner file");
 
-        SeedTeacher(context, teacherId, subjectId);
-        SeedUser(context, uploaderUserId, "Uploader", "uploader@example.com");
-        SeedDocument(context, documentId, subjectId, teacherId, RelativePath(storageRoot, filePath), uploaderUserId);
+        SeedTeacher(context, teacherId, subjectId, isHeader: false);
+        SeedDocument(
+            context,
+            documentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, filePath));
         await context.SaveChangesAsync();
 
         var vectorStore = new RecordingVectorStore();
@@ -109,58 +333,13 @@ public sealed class TeacherDocumentServiceTests
         var result = await service.DeleteAsync(teacherId, "teacher@example.com", documentId);
 
         Assert.False(result.Succeeded);
-        Assert.Contains("Only the teacher who uploaded this document can delete it", result.ErrorMessage);
-        Assert.Empty(vectorStore.DeletedSubjectIds);
+        Assert.Contains("Only the header teacher", result.ErrorMessage);
+        Assert.Empty(vectorStore.DeletedDocumentIds);
         Assert.True(File.Exists(filePath));
-        Assert.True(await context.Documents.AnyAsync(document => document.DocumentId == documentId));
     }
 
     [Fact]
-    public async Task UploadAsync_DoesNotDeleteExistingDocumentation_WhenTeacherCannotUploadSubject()
-    {
-        var storageRoot = CreateTempDirectory();
-        await using var context = CreateContext();
-        var subjectId = Guid.NewGuid();
-        var teacherId = Guid.NewGuid();
-        var oldDocumentId = Guid.NewGuid();
-        var oldFilePath = Path.Combine(storageRoot, subjectId.ToString("N"), $"{oldDocumentId:N}.pdf");
-        Directory.CreateDirectory(Path.GetDirectoryName(oldFilePath)!);
-        await File.WriteAllTextAsync(oldFilePath, "old subject file");
-
-        context.Teachers.Add(new Teacher
-        {
-            TeacherId = teacherId,
-            FullName = "Teacher",
-            Email = "teacher@example.com"
-        });
-        context.Subjects.Add(new Subject
-        {
-            SubjectId = subjectId,
-            SubjectCode = "MATH",
-            SubjectName = "Math"
-        });
-        SeedDocument(context, oldDocumentId, subjectId, teacherId, RelativePath(storageRoot, oldFilePath));
-        await context.SaveChangesAsync();
-
-        var vectorStore = new RecordingVectorStore();
-        var queue = new RecordingDocumentProcessingQueue();
-        var service = CreateService(context, storageRoot, vectorStore, queue);
-
-        var result = await service.UploadAsync(CreateUploadRequest(
-            teacherId,
-            "teacher@example.com",
-            subjectId,
-            "replacement.pdf"));
-
-        Assert.False(result.Succeeded);
-        Assert.Empty(vectorStore.DeletedSubjectIds);
-        Assert.Empty(queue.EnqueuedDocumentIds);
-        Assert.True(File.Exists(oldFilePath));
-        Assert.True(await context.Documents.AnyAsync(document => document.DocumentId == oldDocumentId));
-    }
-
-    [Fact]
-    public async Task GetDocumentListAsync_ReturnsUploadedByDetails()
+    public async Task GetDocumentListAsync_ReturnsUploadedByDetailsAndManageFlag()
     {
         var storageRoot = CreateTempDirectory();
         await using var context = CreateContext();
@@ -172,9 +351,15 @@ public sealed class TeacherDocumentServiceTests
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
         await File.WriteAllTextAsync(filePath, "owner file");
 
-        SeedTeacher(context, teacherId, subjectId);
+        SeedTeacher(context, teacherId, subjectId, isHeader: true);
         SeedUser(context, uploaderUserId, "Uploader Name", "uploader@example.com");
-        SeedDocument(context, documentId, subjectId, teacherId, RelativePath(storageRoot, filePath), uploaderUserId);
+        SeedDocument(
+            context,
+            documentId,
+            subjectId,
+            teacherId,
+            RelativePath(storageRoot, filePath),
+            uploadedByUserId: uploaderUserId);
         await context.SaveChangesAsync();
 
         var vectorStore = new RecordingVectorStore();
@@ -191,6 +376,7 @@ public sealed class TeacherDocumentServiceTests
         Assert.Equal("General", row.ChapterTitle);
         Assert.Equal($"{documentId:N}.pdf", row.FileName);
         Assert.Equal("pdf", row.FileType);
+        Assert.True(row.CanManage);
     }
 
     private static TeacherDocumentService CreateService(
@@ -199,8 +385,17 @@ public sealed class TeacherDocumentServiceTests
         IVectorStore vectorStore,
         IDocumentProcessingQueue queue)
     {
+        return CreateService(new UnitOfWork(context), storageRoot, vectorStore, queue);
+    }
+
+    private static TeacherDocumentService CreateService(
+        IUnitOfWork unitOfWork,
+        string storageRoot,
+        IVectorStore vectorStore,
+        IDocumentProcessingQueue queue)
+    {
         return new TeacherDocumentService(
-            new UnitOfWork(context),
+            unitOfWork,
             queue,
             vectorStore,
             new NoOpDocumentProcessingNotifier(),
@@ -226,20 +421,25 @@ public sealed class TeacherDocumentServiceTests
         Guid teacherId,
         string email,
         Guid subjectId,
-        string fileName)
+        string fileName,
+        string chapterTitle)
     {
         return new UploadTeacherDocumentRequest(
             teacherId,
             email,
             "Replacement",
             subjectId,
-            "General",
+            chapterTitle,
             fileName,
             11,
             new MemoryStream(Encoding.UTF8.GetBytes("new content")));
     }
 
-    private static void SeedTeacher(AppDbContext context, Guid teacherId, Guid subjectId)
+    private static void SeedTeacher(
+        AppDbContext context,
+        Guid teacherId,
+        Guid subjectId,
+        bool isHeader)
     {
         context.Teachers.Add(new Teacher
         {
@@ -257,7 +457,8 @@ public sealed class TeacherDocumentServiceTests
         {
             TeacherSubjectId = Guid.NewGuid(),
             TeacherId = teacherId,
-            SubjectId = subjectId
+            SubjectId = subjectId,
+            IsHeadOfDepartment = isHeader
         });
     }
 
@@ -283,14 +484,16 @@ public sealed class TeacherDocumentServiceTests
         Guid subjectId,
         Guid teacherId,
         string relativePath,
-        Guid? uploadedByUserId = null)
+        Guid? uploadedByUserId = null,
+        string chapterTitle = "General",
+        int chapterOrder = 1)
     {
         var chapter = new Chapter
         {
             ChapterId = Guid.NewGuid(),
             SubjectId = subjectId,
-            ChapterTitle = "General",
-            ChapterOrder = 1
+            ChapterTitle = chapterTitle,
+            ChapterOrder = chapterOrder
         };
 
         if (!context.Subjects.Local.Any(subject => subject.SubjectId == subjectId)
@@ -347,7 +550,7 @@ public sealed class TeacherDocumentServiceTests
 
     private sealed class RecordingVectorStore : IVectorStore
     {
-        public List<Guid> DeletedSubjectIds { get; } = [];
+        public List<Guid> DeletedDocumentIds { get; } = [];
 
         public Task UpsertAsync(
             IReadOnlyList<EmbeddedDocumentChunk> chunks,
@@ -356,9 +559,9 @@ public sealed class TeacherDocumentServiceTests
             return Task.CompletedTask;
         }
 
-        public Task DeleteBySubjectAsync(Guid subjectId, CancellationToken cancellationToken = default)
+        public Task DeleteByDocumentAsync(Guid documentId, CancellationToken cancellationToken = default)
         {
-            DeletedSubjectIds.Add(subjectId);
+            DeletedDocumentIds.Add(documentId);
 
             return Task.CompletedTask;
         }
@@ -395,6 +598,38 @@ public sealed class TeacherDocumentServiceTests
             CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class ThrowingUnitOfWork(
+        AppDbContext context,
+        Exception saveException) : IUnitOfWork
+    {
+        private readonly Dictionary<Type, object> repositories = [];
+
+        public IRepository<TEntity> Repository<TEntity>()
+            where TEntity : class
+        {
+            var entityType = typeof(TEntity);
+            if (repositories.TryGetValue(entityType, out var repository))
+            {
+                return (IRepository<TEntity>)repository;
+            }
+
+            var createdRepository = new Repository<TEntity>(context);
+            repositories[entityType] = createdRepository;
+
+            return createdRepository;
+        }
+
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromException<int>(saveException);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
         }
     }
 }

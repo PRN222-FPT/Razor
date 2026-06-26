@@ -22,7 +22,8 @@ public sealed class GeminiEmbeddingService(
         var settings = options.Value;
         if (string.IsNullOrWhiteSpace(settings.ApiKey))
         {
-            throw new InvalidOperationException("Gemini API key is not configured.");
+            throw new InvalidOperationException(
+                "Document embedding is unavailable because the Gemini API key is not configured.");
         }
 
         var embeddings = new List<IReadOnlyList<float>>(chunks.Count);
@@ -47,7 +48,8 @@ public sealed class GeminiEmbeddingService(
         var settings = options.Value;
         if (string.IsNullOrWhiteSpace(settings.ApiKey))
         {
-            throw new InvalidOperationException("Gemini API key is not configured.");
+            throw new InvalidOperationException(
+                "Query embedding is unavailable because the Gemini API key is not configured.");
         }
 
         if (string.IsNullOrWhiteSpace(query))
@@ -98,7 +100,6 @@ public sealed class GeminiEmbeddingService(
 
         return values;
     }
-
     private sealed record GeminiEmbedRequest(
         [property: JsonPropertyName("content")] GeminiContent Content,
         [property: JsonPropertyName("task_type")] string TaskType,

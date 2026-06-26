@@ -157,7 +157,7 @@
                                                   asp-route-documentId="@document.DocumentId"
                                                   onsubmit="return confirm('Delete this document?');">
                                                 <button type="submit"
-                                                        title="@(Model.CanDelete(document) ? "Delete document" : "Only the uploading teacher can delete this document.")"
+                                                        title="@(Model.CanDelete(document) ? "Delete document" : "Only the header teacher can delete chapter documents for this subject.")"
                                                         aria-label="Delete document"
                                                         disabled="@(!Model.CanDelete(document))">
                                                     <span class="material-symbols-outlined" aria-hidden="true">delete</span>

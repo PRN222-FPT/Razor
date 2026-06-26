@@ -153,8 +153,10 @@ public sealed class RagChatServiceTests
         var userId = Guid.NewGuid();
         var subjectWithDocumentId = Guid.NewGuid();
         var subjectWithoutDocumentId = Guid.NewGuid();
-        var chapterId = Guid.NewGuid();
-        var documentId = Guid.NewGuid();
+        var firstChapterId = Guid.NewGuid();
+        var secondChapterId = Guid.NewGuid();
+        var firstDocumentId = Guid.NewGuid();
+        var secondDocumentId = Guid.NewGuid();
 
         context.Users.Add(new User
         {
@@ -179,21 +181,39 @@ public sealed class RagChatServiceTests
             });
         context.Chapters.Add(new Chapter
         {
-            ChapterId = chapterId,
+            ChapterId = firstChapterId,
             SubjectId = subjectWithDocumentId,
             ChapterTitle = "Dependency Injection"
         });
-        context.Documents.Add(new Document
+        context.Chapters.Add(new Chapter
         {
-            DocumentId = documentId,
+            ChapterId = secondChapterId,
             SubjectId = subjectWithDocumentId,
-            ChapterId = chapterId,
-            Title = "Week 1 Slides",
-            FileUrl = "week1.pdf",
-            FileType = "pdf",
-            Status = "completed",
-            CreatedAt = new DateTime(2026, 6, 18, 10, 30, 0)
+            ChapterTitle = "Middleware"
         });
+        context.Documents.AddRange(
+            new Document
+            {
+                DocumentId = firstDocumentId,
+                SubjectId = subjectWithDocumentId,
+                ChapterId = firstChapterId,
+                Title = "Week 1 Slides",
+                FileUrl = "week1.pdf",
+                FileType = "pdf",
+                Status = "completed",
+                CreatedAt = new DateTime(2026, 6, 18, 10, 30, 0)
+            },
+            new Document
+            {
+                DocumentId = secondDocumentId,
+                SubjectId = subjectWithDocumentId,
+                ChapterId = secondChapterId,
+                Title = "Week 2 Slides",
+                FileUrl = "week2.pdf",
+                FileType = "pdf",
+                Status = "completed",
+                CreatedAt = new DateTime(2026, 6, 19, 9, 0, 0)
+            });
         await context.SaveChangesAsync();
 
         var service = CreateService(
@@ -205,16 +225,18 @@ public sealed class RagChatServiceTests
         var page = await service.GetChatPageAsync(userId);
 
         Assert.Equal(2, page.Subjects.Count);
-        Assert.Equal(1, page.DocumentLibrary.TotalDocuments);
+        Assert.Equal(2, page.DocumentLibrary.TotalDocuments);
         Assert.Equal(2, page.DocumentLibrary.Subjects.Count);
 
         var subjectWithDocument = Assert.Single(
             page.DocumentLibrary.Subjects,
             subject => subject.SubjectId == subjectWithDocumentId);
-        var document = Assert.Single(subjectWithDocument.Documents);
-        Assert.Equal("Week 1 Slides", document.Title);
-        Assert.Equal("Dependency Injection", document.ChapterTitle);
-        Assert.Equal("completed", document.Status);
+        Assert.Equal(2, subjectWithDocument.Documents.Count);
+        Assert.Equal("Week 2 Slides", subjectWithDocument.Documents[0].Title);
+        Assert.Equal("Middleware", subjectWithDocument.Documents[0].ChapterTitle);
+        Assert.Equal("Week 1 Slides", subjectWithDocument.Documents[1].Title);
+        Assert.Equal("Dependency Injection", subjectWithDocument.Documents[1].ChapterTitle);
+        Assert.All(subjectWithDocument.Documents, document => Assert.Equal("completed", document.Status));
 
         var subjectWithoutDocument = Assert.Single(
             page.DocumentLibrary.Subjects,
@@ -499,7 +521,7 @@ public sealed class RagChatServiceTests
             return Task.CompletedTask;
         }
 
-        public Task DeleteBySubjectAsync(Guid subjectId, CancellationToken cancellationToken = default)
+        public Task DeleteByDocumentAsync(Guid documentId, CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
         }

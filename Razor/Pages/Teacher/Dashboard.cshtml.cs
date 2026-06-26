@@ -98,7 +98,7 @@ public sealed class DashboardModel(
             return Page();
         }
 
-        SuccessMessage = "Document was deleted. You can upload a new document for the subject now.";
+        SuccessMessage = "Document was deleted. You can upload a new document for that chapter now.";
 
         return RedirectToPage("/Teacher/Dashboard");
     }
@@ -142,12 +142,7 @@ public sealed class DashboardModel(
 
     public bool CanDelete(TeacherDocumentRowDto document)
     {
-        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId))
-        {
-            return false;
-        }
-
-        return document.UploadedById == currentUserId;
+        return document.CanManage;
     }
 
     public string GetFileIconClass(TeacherDocumentRowDto document)

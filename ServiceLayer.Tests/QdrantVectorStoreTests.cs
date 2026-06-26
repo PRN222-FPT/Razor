@@ -10,9 +10,9 @@ namespace ServiceLayer.Tests;
 public sealed class QdrantVectorStoreTests
 {
     [Fact]
-    public async Task DeleteBySubjectAsync_DeletesPointsBySubjectPayload()
+    public async Task DeleteByDocumentAsync_DeletesPointsByDocumentPayload()
     {
-        var subjectId = Guid.NewGuid();
+        var documentId = Guid.NewGuid();
         var handler = new RecordingHttpMessageHandler();
         using var httpClient = new HttpClient(handler)
         {
@@ -23,7 +23,7 @@ public sealed class QdrantVectorStoreTests
             Options.Create(new QdrantOptions { CollectionName = "document_chunks" }),
             Options.Create(new GeminiOptions { OutputDimensionality = 768 }));
 
-        await store.DeleteBySubjectAsync(subjectId);
+        await store.DeleteByDocumentAsync(documentId);
 
         var deleteRequest = Assert.Single(
             handler.Requests,
@@ -37,8 +37,8 @@ public sealed class QdrantVectorStoreTests
             .GetProperty("filter")
             .GetProperty("must")[0];
 
-        Assert.Equal("subjectId", condition.GetProperty("key").GetString());
-        Assert.Equal(subjectId.ToString(), condition.GetProperty("match").GetProperty("value").GetString());
+        Assert.Equal("documentId", condition.GetProperty("key").GetString());
+        Assert.Equal(documentId.ToString(), condition.GetProperty("match").GetProperty("value").GetString());
     }
 
     [Fact]
