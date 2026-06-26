@@ -241,6 +241,91 @@
                                             </button>
                                         </form>
                                     </div>
+                                    <details class="admin-blue-subject-editor">
+                                        <summary>Edit subject</summary>
+                                        <form method="post" asp-page-handler="UpdateSubject" class="admin-blue-create-form">
+                                            <input type="hidden" asp-for="SearchTerm" />
+                                            <input type="hidden" asp-for="RoleFilter" />
+                                            <input type="hidden" name="UpdateSubject.SubjectId" value="@subject.SubjectId" />
+
+                                            <div class="admin-blue-form-grid subject">
+                                                <div class="admin-blue-field">
+                                                    <label for="update-subject-code-@subject.SubjectId">Subject code</label>
+                                                    <input id="update-subject-code-@subject.SubjectId"
+                                                           name="UpdateSubject.SubjectCode"
+                                                           value="@subject.SubjectCode"
+                                                           autocomplete="off" />
+                                                </div>
+                                                <div class="admin-blue-field">
+                                                    <label for="update-subject-name-@subject.SubjectId">Subject name</label>
+                                                    <input id="update-subject-name-@subject.SubjectId"
+                                                           name="UpdateSubject.SubjectName"
+                                                           value="@subject.SubjectName"
+                                                           autocomplete="off" />
+                                                </div>
+                                                <div class="admin-blue-field wide">
+                                                    <label for="update-subject-description-@subject.SubjectId">Description</label>
+                                                    <input id="update-subject-description-@subject.SubjectId"
+                                                           name="UpdateSubject.Description"
+                                                           value="@subject.Description"
+                                                           autocomplete="off" />
+                                                </div>
+                                                <div class="admin-blue-field">
+                                                    <label for="update-subject-header-@subject.SubjectId">Header teacher</label>
+                                                    @if (Model.Teachers.Count == 0)
+                                                    {
+                                                        <select id="update-subject-header-@subject.SubjectId" disabled>
+                                                            <option value="">No teachers available</option>
+                                                        </select>
+                                                    }
+                                                    else
+                                                    {
+                                                        <select id="update-subject-header-@subject.SubjectId"
+                                                                name="UpdateSubject.HeaderTeacherId"
+                                                                asp-items="Model.GetHeaderTeacherOptions(subject)">
+                                                            <option value="">Choose header teacher</option>
+                                                        </select>
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            <div class="admin-blue-teacher-picker">
+                                                <div class="admin-blue-field-label">
+                                                    <label>Assigned teachers</label>
+                                                    <span>Teachers removed here will lose access in realtime.</span>
+                                                </div>
+
+                                                @if (Model.Teachers.Count == 0)
+                                                {
+                                                    <p class="admin-blue-empty-inline">No teachers are available yet.</p>
+                                                }
+                                                else
+                                                {
+                                                    <div class="admin-blue-teacher-list">
+                                                        @foreach (var teacher in Model.Teachers)
+                                                        {
+                                                            <label class="admin-blue-teacher-option">
+                                                                <input type="checkbox"
+                                                                       name="UpdateSubject.AssignedTeacherIds"
+                                                                       value="@teacher.TeacherId"
+                                                                       @(Model.IsTeacherAssigned(subject, teacher.TeacherId) ? "checked" : null) />
+                                                                <span>
+                                                                    <strong>@teacher.FullName</strong>
+                                                                    <small>@PortalModel.FormatTeacherAssignment(teacher)</small>
+                                                                </span>
+                                                            </label>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+
+                                            <div class="admin-blue-create-actions">
+                                                <button class="admin-blue-primary-button" type="submit">
+                                                    Save Subject
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </details>
                                 </article>
                             }
                         }

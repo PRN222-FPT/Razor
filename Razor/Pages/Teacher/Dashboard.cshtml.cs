@@ -152,6 +152,16 @@ public sealed class DashboardModel(
         return $"{document.SubjectCode}: {document.SubjectName}";
     }
 
+    public string GetSelectedUploadSubjectLabel()
+    {
+        var selectedSubject = Dashboard.Subjects
+            .FirstOrDefault(subject => subject.SubjectId == UploadDocument.SubjectId);
+
+        return selectedSubject is null
+            ? "Choose subject"
+            : $"{selectedSubject.SubjectCode}: {selectedSubject.SubjectName}";
+    }
+
     public string FormatFileName(TeacherDocumentRowDto document)
     {
         return string.IsNullOrWhiteSpace(document.FileName)

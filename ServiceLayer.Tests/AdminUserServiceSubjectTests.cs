@@ -223,6 +223,151 @@ public sealed class AdminUserServiceSubjectTests
     }
 
     [Fact]
+    public async Task UpdateSubjectAsync_ReplacesAssignmentsAndHeader()
+    {
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherOneId = Guid.NewGuid();
+        var teacherTwoId = Guid.NewGuid();
+
+        context.Subjects.Add(new Subject
+        {
+            SubjectId = subjectId,
+            SubjectCode = "PRN222",
+            SubjectName = "Razor Pages",
+            Description = "Old description"
+        });
+        context.Teachers.AddRange(
+            new Teacher
+            {
+                TeacherId = teacherOneId,
+                FullName = "Alice Nguyen",
+                Email = "alice@example.com"
+            },
+            new Teacher
+            {
+                TeacherId = teacherTwoId,
+                FullName = "Bob Tran",
+                Email = "bob@example.com"
+            });
+        context.TeacherSubjects.Add(new TeacherSubject
+        {
+            TeacherSubjectId = Guid.NewGuid(),
+            TeacherId = teacherOneId,
+            SubjectId = subjectId,
+            IsHeadOfDepartment = true
+        });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context);
+
+        var result = await service.UpdateSubjectAsync(
+            new UpdateSubjectRequest(
+                subjectId,
+                "PRN223",
+                "Advanced Razor",
+                "New description",
+                [teacherTwoId],
+                teacherTwoId));
+
+        Assert.True(result.Succeeded);
+        var subject = await context.Subjects.SingleAsync(item => item.SubjectId == subjectId);
+        Assert.Equal("PRN223", subject.SubjectCode);
+        Assert.Equal("Advanced Razor", subject.SubjectName);
+        Assert.Equal("New description", subject.Description);
+
+        var teacherSubjects = await context.TeacherSubjects
+            .Where(item => item.SubjectId == subjectId)
+            .ToListAsync();
+        var teacherSubject = Assert.Single(teacherSubjects);
+        Assert.Equal(teacherTwoId, teacherSubject.TeacherId);
+        Assert.True(teacherSubject.IsHeadOfDepartment);
+    }
+
+    [Fact]
+    public async Task UpdateSubjectAsync_NotifiesAddedRetainedAndRemovedTeachers()
+    {
+        await using var context = CreateContext();
+        var subjectId = Guid.NewGuid();
+        var teacherOneId = Guid.NewGuid();
+        var teacherTwoId = Guid.NewGuid();
+        var teacherThreeId = Guid.NewGuid();
+        var notifier = new RecordingTeacherSubjectRealtimeNotifier();
+
+        context.Subjects.Add(new Subject
+        {
+            SubjectId = subjectId,
+            SubjectCode = "PRN222",
+            SubjectName = "Razor Pages"
+        });
+        context.Teachers.AddRange(
+            new Teacher
+            {
+                TeacherId = teacherOneId,
+                FullName = "Alice Nguyen",
+                Email = "alice@example.com"
+            },
+            new Teacher
+            {
+                TeacherId = teacherTwoId,
+                FullName = "Bob Tran",
+                Email = "bob@example.com"
+            },
+            new Teacher
+            {
+                TeacherId = teacherThreeId,
+                FullName = "Carol Pham",
+                Email = "carol@example.com"
+            });
+        context.TeacherSubjects.AddRange(
+            new TeacherSubject
+            {
+                TeacherSubjectId = Guid.NewGuid(),
+                TeacherId = teacherOneId,
+                SubjectId = subjectId,
+                IsHeadOfDepartment = true
+            },
+            new TeacherSubject
+            {
+                TeacherSubjectId = Guid.NewGuid(),
+                TeacherId = teacherTwoId,
+                SubjectId = subjectId,
+                IsHeadOfDepartment = false
+            });
+        await context.SaveChangesAsync();
+
+        var service = CreateService(context, notifier);
+
+        var result = await service.UpdateSubjectAsync(
+            new UpdateSubjectRequest(
+                subjectId,
+                "PRN999",
+                "Realtime Updated",
+                null,
+                [teacherTwoId, teacherThreeId],
+                teacherTwoId));
+
+        Assert.True(result.Succeeded);
+
+        var assignedNotification = Assert.Single(notifier.AssignedNotifications);
+        Assert.Equal(subjectId, assignedNotification.SubjectId);
+        Assert.Equal("PRN999", assignedNotification.SubjectCode);
+        Assert.Contains(teacherThreeId, assignedNotification.TeacherIds);
+        Assert.Single(assignedNotification.TeacherIds);
+
+        var updatedNotification = Assert.Single(notifier.UpdatedNotifications);
+        Assert.Equal(subjectId, updatedNotification.SubjectId);
+        Assert.Equal("Realtime Updated", updatedNotification.SubjectName);
+        Assert.Contains(teacherTwoId, updatedNotification.TeacherIds);
+        Assert.Single(updatedNotification.TeacherIds);
+
+        var deletedNotification = Assert.Single(notifier.Notifications);
+        Assert.Equal(subjectId, deletedNotification.SubjectId);
+        Assert.Contains(teacherOneId, deletedNotification.TeacherIds);
+        Assert.Single(deletedNotification.TeacherIds);
+    }
+
+    [Fact]
     public async Task GetTeacherSummariesAsync_ReturnsAllSubjectAssignments()
     {
         await using var context = CreateContext();
@@ -487,6 +632,13 @@ public sealed class AdminUserServiceSubjectTests
             return Task.CompletedTask;
         }
 
+        public Task NotifySubjectUpdatedAsync(
+            TeacherSubjectUpdatedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task NotifySubjectDeletedAsync(
             TeacherSubjectDeletedNotification notification,
             CancellationToken cancellationToken = default)
@@ -498,6 +650,7 @@ public sealed class AdminUserServiceSubjectTests
     private sealed class RecordingTeacherSubjectRealtimeNotifier : ITeacherSubjectRealtimeNotifier
     {
         public List<TeacherSubjectAssignedNotification> AssignedNotifications { get; } = [];
+        public List<TeacherSubjectUpdatedNotification> UpdatedNotifications { get; } = [];
         public List<TeacherSubjectDeletedNotification> Notifications { get; } = [];
 
         public Task NotifySubjectAssignedAsync(
@@ -505,6 +658,14 @@ public sealed class AdminUserServiceSubjectTests
             CancellationToken cancellationToken = default)
         {
             AssignedNotifications.Add(notification);
+            return Task.CompletedTask;
+        }
+
+        public Task NotifySubjectUpdatedAsync(
+            TeacherSubjectUpdatedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            UpdatedNotifications.Add(notification);
             return Task.CompletedTask;
         }
 

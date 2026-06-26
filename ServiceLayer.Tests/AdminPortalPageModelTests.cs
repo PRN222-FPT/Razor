@@ -90,17 +90,58 @@ public sealed class AdminPortalPageModelTests
         Assert.Null(service.LastCreateSubjectRequest?.HeaderTeacherId);
     }
 
+    [Fact]
+    public async Task OnPostUpdateSubjectAsync_ForwardsUpdatePayload()
+    {
+        var service = new RecordingAdminUserService
+        {
+            UpdateSubjectResponse = UpdateSubjectResult.Success()
+        };
+        var subjectId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var model = new PortalModel(service)
+        {
+            UpdateSubject =
+            {
+                SubjectId = subjectId,
+                SubjectCode = "PRN223",
+                SubjectName = "Advanced Razor",
+                Description = "Updated description",
+                AssignedTeacherIds = [Guid.Parse("11111111-1111-1111-1111-111111111111")],
+                HeaderTeacherId = Guid.Parse("11111111-1111-1111-1111-111111111111")
+            }
+        };
+        model.PageContext = CreatePageContext();
+
+        var result = await model.OnPostUpdateSubjectAsync(CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToPageResult>(result);
+        Assert.Equal("/Admin/Portal", redirect.PageName);
+        Assert.Equal(subjectId, service.LastUpdateSubjectRequest?.SubjectId);
+        Assert.Equal("PRN223", service.LastUpdateSubjectRequest?.SubjectCode);
+        Assert.Equal("Advanced Razor", service.LastUpdateSubjectRequest?.SubjectName);
+        Assert.Equal("Updated description", service.LastUpdateSubjectRequest?.Description);
+        Assert.Single(service.LastUpdateSubjectRequest?.AssignedTeacherIds ?? []);
+        Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), service.LastUpdateSubjectRequest?.HeaderTeacherId);
+        Assert.Equal(1, service.UpdateSubjectCalls);
+    }
+
     private sealed class RecordingAdminUserService : IAdminUserService
     {
         public int ResetAccountPasswordCalls { get; private set; }
 
         public int CreateSubjectCalls { get; private set; }
 
+        public int UpdateSubjectCalls { get; private set; }
+
         public CreateSubjectRequest? LastCreateSubjectRequest { get; private set; }
+
+        public UpdateSubjectRequest? LastUpdateSubjectRequest { get; private set; }
 
         public UpdateAccountStatusResult ResetAccountPasswordResult { get; set; } = UpdateAccountStatusResult.Success();
 
         public CreateSubjectResult CreateSubjectResponse { get; set; } = CreateSubjectResult.Failure("Not implemented.");
+
+        public UpdateSubjectResult UpdateSubjectResponse { get; set; } = UpdateSubjectResult.Failure("Not implemented.");
 
         public Task<AdminUserManagementDto> GetUserManagementAsync(
             string? searchTerm,
@@ -130,6 +171,15 @@ public sealed class AdminPortalPageModelTests
             CreateSubjectCalls++;
             LastCreateSubjectRequest = request;
             return Task.FromResult(CreateSubjectResponse);
+        }
+
+        public Task<UpdateSubjectResult> UpdateSubjectAsync(
+            UpdateSubjectRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            UpdateSubjectCalls++;
+            LastUpdateSubjectRequest = request;
+            return Task.FromResult(UpdateSubjectResponse);
         }
 
         public Task<DeleteSubjectResult> DeleteSubjectAsync(

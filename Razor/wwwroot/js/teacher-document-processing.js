@@ -1,4 +1,5 @@
 (function () {
+  initializeSubjectPicker();
   initializeFilePicker();
   initializeChunkingControls();
 
@@ -48,8 +49,19 @@
       return;
     }
 
-    addAssignedSubjectOption(message);
+    upsertSubjectOption(message);
     showSubjectAssignedMessage(message);
+  });
+
+  connection.on('subjectUpdated', (message) => {
+    const subjectId = message?.subjectId || message?.SubjectId;
+    if (!subjectId) {
+      return;
+    }
+
+    upsertSubjectOption(message);
+    updateSubjectRows(message);
+    showSubjectUpdatedMessage(message);
   });
 
   connection.start().catch(() => {
@@ -124,54 +136,81 @@
   }
 
   function removeDeletedSubjectOption(subjectId) {
-    const select = document.querySelector('[data-upload-subject-select]');
-    if (!select) {
-      return;
-    }
-
-    const option = select.querySelector(`option[value="${subjectId}"]`);
+    const subjectInput = document.querySelector('[data-upload-subject-input]');
+    const pickerLabel = document.querySelector('[data-subject-picker-label]');
+    const option = document.querySelector(`[data-subject-option][data-subject-id="${subjectId}"]`);
     if (!option) {
       return;
     }
 
-    const wasSelected = select.value === subjectId;
+    const wasSelected = subjectInput && subjectInput.value === subjectId;
     option.remove();
 
     if (wasSelected) {
-      select.value = '';
+      if (subjectInput) {
+        subjectInput.value = '';
+      }
+
+      if (pickerLabel) {
+        pickerLabel.textContent = 'Choose subject';
+      }
     }
 
-    const hasSubjects = Array.from(select.options).some((candidate) => candidate.value);
+    const hasSubjects = document.querySelectorAll('[data-subject-option]').length > 0;
     toggleUploadAvailability(hasSubjects);
   }
 
-  function addAssignedSubjectOption(message) {
-    const select = document.querySelector('[data-upload-subject-select]');
-    if (!select) {
+  function upsertSubjectOption(message) {
+    const list = document.querySelector('[data-subject-picker-list]');
+    if (!list) {
       return;
     }
 
     const subjectId = message?.subjectId || message?.SubjectId;
-    if (!subjectId || select.querySelector(`option[value="${subjectId}"]`)) {
+    if (!subjectId) {
       return;
     }
 
-    const subjectCode = message?.subjectCode || message?.SubjectCode || '';
-    const subjectName = message?.subjectName || message?.SubjectName || '';
-
-    const option = document.createElement('option');
-    option.value = subjectId;
-    option.textContent = `${subjectCode}: ${subjectName}`;
-
-    const placeholder = select.querySelector('option[value=""]');
-    if (placeholder?.nextSibling) {
-      select.insertBefore(option, placeholder.nextSibling);
-    } else {
-      select.appendChild(option);
+    const existingOption = list.querySelector(`[data-subject-option][data-subject-id="${subjectId}"]`);
+    if (existingOption) {
+      existingOption.dataset.subjectLabel = formatSubjectLabel(message);
+      existingOption.dataset.subjectCode = message?.subjectCode || message?.SubjectCode || '';
+      existingOption.dataset.subjectName = message?.subjectName || message?.SubjectName || '';
+      existingOption.innerHTML = `<strong>${escapeHtml(existingOption.dataset.subjectCode)}</strong><span>${escapeHtml(existingOption.dataset.subjectName)}</span>`;
+      syncSelectedSubjectLabel(subjectId);
+      sortSubjectOptions(list);
+      return;
     }
 
-    sortSubjectOptions(select);
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'teacher-stitch-subject-option';
+    option.setAttribute('data-subject-option', '');
+    option.setAttribute('data-subject-id', subjectId);
+    option.setAttribute('data-subject-label', formatSubjectLabel(message));
+    option.setAttribute('data-subject-code', message?.subjectCode || message?.SubjectCode || '');
+    option.setAttribute('data-subject-name', message?.subjectName || message?.SubjectName || '');
+    option.innerHTML = `<strong>${escapeHtml(option.dataset.subjectCode)}</strong><span>${escapeHtml(option.dataset.subjectName)}</span>`;
+    list.appendChild(option);
+
+    sortSubjectOptions(list);
     toggleUploadAvailability(true);
+  }
+
+  function updateSubjectRows(message) {
+    const subjectId = message?.subjectId || message?.SubjectId;
+    if (!subjectId) {
+      return;
+    }
+
+    const label = formatSubjectLabel(message);
+    const rows = Array.from(document.querySelectorAll(`[data-subject-id="${subjectId}"]`));
+    rows.forEach((row) => {
+      const subjectCell = row.querySelector('[data-subject-label]');
+      if (subjectCell) {
+        subjectCell.textContent = label;
+      }
+    });
   }
 
   function removeDeletedSubjectRows(subjectId) {
@@ -213,15 +252,35 @@
     alert.hidden = false;
   }
 
+  function showSubjectUpdatedMessage(message) {
+    const alert = document.querySelector('[data-subject-sync-message]');
+    if (!alert) {
+      return;
+    }
+
+    const subjectCode = message?.subjectCode || message?.SubjectCode || 'Subject';
+    const subjectName = message?.subjectName || message?.SubjectName || '';
+    alert.textContent = subjectName
+      ? `${subjectCode}: ${subjectName} was updated by an administrator.`
+      : `${subjectCode} was updated by an administrator.`;
+    alert.hidden = false;
+  }
+
   function toggleUploadAvailability(hasSubjects) {
     const warning = document.querySelector('[data-no-subject-warning]');
     if (warning) {
       warning.hidden = hasSubjects;
     }
 
-    const subjectSelect = document.querySelector('[data-upload-subject-select]');
-    if (subjectSelect) {
-      subjectSelect.disabled = !hasSubjects;
+    const subjectPicker = document.querySelector('[data-subject-picker]');
+    if (subjectPicker) {
+      subjectPicker.classList.toggle('is-disabled', !hasSubjects);
+      if (hasSubjects) {
+        subjectPicker.removeAttribute('data-disabled');
+      } else {
+        subjectPicker.setAttribute('data-disabled', 'true');
+        subjectPicker.removeAttribute('open');
+      }
     }
 
     document.querySelectorAll('[data-upload-field], [data-upload-submit]').forEach((element) => {
@@ -284,14 +343,74 @@
     });
   }
 
-  function sortSubjectOptions(select) {
-    const options = Array.from(select.querySelectorAll('option'))
-      .filter((option) => option.value);
+  function sortSubjectOptions(container) {
+    const options = Array.from(container.querySelectorAll('[data-subject-option]'));
 
-    options.sort((left, right) => left.textContent.localeCompare(right.textContent));
-    options.forEach((option) => {
-      select.appendChild(option);
+    options.sort((left, right) => {
+      const leftLabel = left.dataset.subjectLabel || '';
+      const rightLabel = right.dataset.subjectLabel || '';
+      return leftLabel.localeCompare(rightLabel);
     });
+    options.forEach((option) => {
+      container.appendChild(option);
+    });
+  }
+
+  function formatSubjectLabel(message) {
+    const subjectCode = message?.subjectCode || message?.SubjectCode || '';
+    const subjectName = message?.subjectName || message?.SubjectName || '';
+    return subjectName ? `${subjectCode}: ${subjectName}` : subjectCode;
+  }
+
+  function initializeSubjectPicker() {
+    const picker = document.querySelector('[data-subject-picker]');
+    const input = document.querySelector('[data-upload-subject-input]');
+    const label = document.querySelector('[data-subject-picker-label]');
+    if (!picker || !input || !label) {
+      return;
+    }
+
+    picker.addEventListener('toggle', () => {
+      if (picker.dataset.disabled === 'true' && picker.open) {
+        picker.removeAttribute('open');
+      }
+    });
+
+    picker.addEventListener('click', (event) => {
+      const option = event.target.closest('[data-subject-option]');
+      if (!option) {
+        return;
+      }
+
+      input.value = option.dataset.subjectId || '';
+      label.textContent = option.dataset.subjectLabel || 'Choose subject';
+      picker.querySelectorAll('[data-subject-option]').forEach((candidate) => {
+        candidate.classList.toggle('is-selected', candidate === option);
+      });
+      picker.removeAttribute('open');
+    });
+  }
+
+  function syncSelectedSubjectLabel(subjectId) {
+    const input = document.querySelector('[data-upload-subject-input]');
+    const label = document.querySelector('[data-subject-picker-label]');
+    if (!input || !label || input.value !== subjectId) {
+      return;
+    }
+
+    const selectedOption = document.querySelector(`[data-subject-option][data-subject-id="${subjectId}"]`);
+    if (selectedOption) {
+      label.textContent = selectedOption.dataset.subjectLabel || 'Choose subject';
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
   function initializeFilePicker() {

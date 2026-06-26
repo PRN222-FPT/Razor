@@ -8,6 +8,10 @@ public interface ITeacherSubjectRealtimeNotifier
         TeacherSubjectAssignedNotification notification,
         CancellationToken cancellationToken = default);
 
+    Task NotifySubjectUpdatedAsync(
+        TeacherSubjectUpdatedNotification notification,
+        CancellationToken cancellationToken = default);
+
     Task NotifySubjectDeletedAsync(
         TeacherSubjectDeletedNotification notification,
         CancellationToken cancellationToken = default);

@@ -120,6 +120,14 @@ public sealed class AdminUserService(
                 subject.TeacherSubjects
                     .Where(teacherSubject => teacherSubject.IsHeadOfDepartment)
                     .Select(teacherSubject => teacherSubject.Teacher.FullName)
+                    .FirstOrDefault(),
+                subject.TeacherSubjects
+                    .OrderBy(teacherSubject => teacherSubject.TeacherId)
+                    .Select(teacherSubject => teacherSubject.TeacherId)
+                    .ToList(),
+                subject.TeacherSubjects
+                    .Where(teacherSubject => teacherSubject.IsHeadOfDepartment)
+                    .Select(teacherSubject => (Guid?)teacherSubject.TeacherId)
                     .FirstOrDefault()))
             .ToListAsync(cancellationToken);
     }
@@ -263,6 +271,189 @@ public sealed class AdminUserService(
         }
 
         return CreateSubjectResult.Success(subject.SubjectId);
+    }
+
+    public async Task<UpdateSubjectResult> UpdateSubjectAsync(
+        UpdateSubjectRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var subjectCode = request.SubjectCode?.Trim().ToUpperInvariant() ?? string.Empty;
+        var subjectName = request.SubjectName?.Trim() ?? string.Empty;
+        var description = string.IsNullOrWhiteSpace(request.Description)
+            ? null
+            : request.Description.Trim();
+        var assignedTeacherIds = NormalizeTeacherIds(request.AssignedTeacherIds);
+        var headerTeacherId = request.HeaderTeacherId;
+
+        if (request.SubjectId == Guid.Empty)
+        {
+            return UpdateSubjectResult.Failure("The subject was not found.");
+        }
+
+        if (string.IsNullOrWhiteSpace(subjectCode))
+        {
+            return UpdateSubjectResult.Failure("Subject code is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(subjectName))
+        {
+            return UpdateSubjectResult.Failure("Subject name is required.");
+        }
+
+        var subject = await unitOfWork.Repository<Subject>()
+            .Query()
+            .Include(item => item.TeacherSubjects)
+            .SingleOrDefaultAsync(item => item.SubjectId == request.SubjectId, cancellationToken);
+        if (subject is null)
+        {
+            return UpdateSubjectResult.Failure("The subject was not found.");
+        }
+
+        var duplicateCodeExists = await unitOfWork.Repository<Subject>()
+            .Query()
+            .AsNoTracking()
+            .AnyAsync(
+                item => item.SubjectId != request.SubjectId
+                    && item.SubjectCode.ToLower() == subjectCode.ToLower(),
+                cancellationToken);
+        if (duplicateCodeExists)
+        {
+            return UpdateSubjectResult.Failure("A subject with this code already exists.");
+        }
+
+        if (headerTeacherId.HasValue && !assignedTeacherIds.Contains(headerTeacherId.Value))
+        {
+            assignedTeacherIds.Add(headerTeacherId.Value);
+        }
+
+        if (assignedTeacherIds.Count > 0)
+        {
+            var validatedTeacherIds = await unitOfWork.Repository<Teacher>()
+                .Query()
+                .AsNoTracking()
+                .Where(teacher => assignedTeacherIds.Contains(teacher.TeacherId))
+                .Select(teacher => teacher.TeacherId)
+                .ToListAsync(cancellationToken);
+
+            if (validatedTeacherIds.Count != assignedTeacherIds.Count)
+            {
+                return UpdateSubjectResult.Failure("One or more selected teachers do not exist.");
+            }
+        }
+
+        var existingTeacherIds = subject.TeacherSubjects
+            .Select(item => item.TeacherId)
+            .Distinct()
+            .ToHashSet();
+        var nextTeacherIds = assignedTeacherIds.ToHashSet();
+        var existingTeacherSubjectsByTeacherId = subject.TeacherSubjects
+            .ToDictionary(item => item.TeacherId);
+
+        subject.SubjectCode = subjectCode;
+        subject.SubjectName = subjectName;
+        subject.Description = description;
+
+        var teacherSubjectRepo = unitOfWork.Repository<TeacherSubject>();
+        foreach (var teacherSubject in subject.TeacherSubjects.ToList())
+        {
+            if (!nextTeacherIds.Contains(teacherSubject.TeacherId))
+            {
+                teacherSubjectRepo.Delete(teacherSubject);
+                continue;
+            }
+
+            teacherSubject.IsHeadOfDepartment = headerTeacherId.HasValue
+                && teacherSubject.TeacherId == headerTeacherId.Value;
+            teacherSubjectRepo.Update(teacherSubject);
+        }
+
+        foreach (var teacherId in assignedTeacherIds)
+        {
+            if (existingTeacherSubjectsByTeacherId.ContainsKey(teacherId))
+            {
+                continue;
+            }
+
+            await teacherSubjectRepo.AddAsync(
+                new TeacherSubject
+                {
+                    TeacherSubjectId = Guid.NewGuid(),
+                    TeacherId = teacherId,
+                    SubjectId = subject.SubjectId,
+                    IsHeadOfDepartment = headerTeacherId.HasValue
+                        && teacherId == headerTeacherId.Value
+                },
+                cancellationToken);
+        }
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "subjects_subject_code_key"))
+        {
+            return UpdateSubjectResult.Failure("A subject with this code already exists.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_one_leader_per_subject"))
+        {
+            return UpdateSubjectResult.Failure("The selected subject already has a header teacher.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_teacher_id_key"))
+        {
+            return UpdateSubjectResult.Failure(
+                "The database still has the old one-subject-per-teacher constraint. Restart the app so the compatibility update can run, then try again.");
+        }
+        catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex, "teacher_subjects_subject_id_key"))
+        {
+            return UpdateSubjectResult.Failure(
+                "The database still has the old one-teacher-per-subject constraint. Restart the app so the compatibility update can run, then try again.");
+        }
+
+        var addedTeacherIds = nextTeacherIds.Except(existingTeacherIds).ToArray();
+        var removedTeacherIds = existingTeacherIds.Except(nextTeacherIds).ToArray();
+        var retainedTeacherIds = nextTeacherIds.Intersect(existingTeacherIds).ToArray();
+
+        if (addedTeacherIds.Length > 0)
+        {
+            await teacherSubjectRealtimeNotifier.NotifySubjectAssignedAsync(
+                new TeacherSubjectAssignedNotification(
+                    subject.SubjectId,
+                    subject.SubjectCode,
+                    subject.SubjectName,
+                    addedTeacherIds),
+                cancellationToken);
+        }
+
+        if (retainedTeacherIds.Length > 0)
+        {
+            await teacherSubjectRealtimeNotifier.NotifySubjectUpdatedAsync(
+                new TeacherSubjectUpdatedNotification(
+                    subject.SubjectId,
+                    subject.SubjectCode,
+                    subject.SubjectName,
+                    retainedTeacherIds),
+                cancellationToken);
+        }
+
+        if (removedTeacherIds.Length > 0)
+        {
+            await teacherSubjectRealtimeNotifier.NotifySubjectDeletedAsync(
+                new TeacherSubjectDeletedNotification(
+                    subject.SubjectId,
+                    subject.SubjectCode,
+                    subject.SubjectName,
+                    removedTeacherIds),
+                cancellationToken);
+        }
+
+        logger.LogInformation(
+            "Subject updated. SubjectId={SubjectId}, AddedTeachers={AddedTeachers}, RemovedTeachers={RemovedTeachers}, RetainedTeachers={RetainedTeachers}",
+            subject.SubjectId,
+            addedTeacherIds.Length,
+            removedTeacherIds.Length,
+            retainedTeacherIds.Length);
+
+        return UpdateSubjectResult.Success();
     }
 
     public async Task<DeleteSubjectResult> DeleteSubjectAsync(

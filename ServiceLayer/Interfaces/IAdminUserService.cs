@@ -20,6 +20,10 @@ public interface IAdminUserService
         CreateSubjectRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<UpdateSubjectResult> UpdateSubjectAsync(
+        UpdateSubjectRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<DeleteSubjectResult> DeleteSubjectAsync(
         Guid subjectId,
         CancellationToken cancellationToken = default);
