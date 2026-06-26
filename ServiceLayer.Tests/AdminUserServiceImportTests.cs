@@ -167,6 +167,13 @@ public sealed class AdminUserServiceImportTests
             return Task.CompletedTask;
         }
 
+        public Task NotifySubjectUpdatedAsync(
+            TeacherSubjectUpdatedNotification notification,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
         public Task NotifySubjectDeletedAsync(
             TeacherSubjectDeletedNotification notification,
             CancellationToken cancellationToken = default)

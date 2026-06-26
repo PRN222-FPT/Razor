@@ -115,16 +115,37 @@
                 <article id="teacher-subjects" class="teacher-stitch-glass-card teacher-stitch-filter-card">
                     <h3><span class="material-symbols-outlined" aria-hidden="true">filter_list</span>Filter Context</h3>
                     <div asp-validation-summary="ModelOnly" class="teacher-stitch-validation-summary"></div>
-                    <label class="teacher-stitch-select-wrap">
-                        <select asp-for="UploadDocument.SubjectId" data-upload-subject-select disabled="@(!hasUploadSubjects)">
-                            <option value="">Choose subject</option>
-                            @foreach (var subject in Model.Dashboard.Subjects)
-                            {
-                                <option value="@subject.SubjectId">@subject.SubjectCode: @subject.SubjectName</option>
-                            }
-                        </select>
-                        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
-                    </label>
+                    <input type="hidden"
+                           id="UploadDocument_SubjectId"
+                           name="UploadDocument.SubjectId"
+                           value="@(Model.UploadDocument.SubjectId == Guid.Empty ? string.Empty : Model.UploadDocument.SubjectId.ToString())"
+                           data-upload-subject-input />
+                    <details class="teacher-stitch-select-wrap teacher-stitch-subject-picker @(!hasUploadSubjects ? "is-disabled" : null)"
+                             data-subject-picker
+                             @(!hasUploadSubjects ? "data-disabled=true" : null)>
+                        <summary class="teacher-stitch-subject-picker-toggle" data-subject-picker-toggle>
+                            <span data-subject-picker-label>@Model.GetSelectedUploadSubjectLabel()</span>
+                            <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                        </summary>
+                        <div class="teacher-stitch-subject-picker-menu" data-subject-picker-menu>
+                            <div class="teacher-stitch-subject-picker-list" data-subject-picker-list>
+                                @foreach (var subject in Model.Dashboard.Subjects)
+                                {
+                                    var isSelected = Model.UploadDocument.SubjectId == subject.SubjectId;
+                                    <button type="button"
+                                            class="teacher-stitch-subject-option @(isSelected ? "is-selected" : null)"
+                                            data-subject-option
+                                            data-subject-id="@subject.SubjectId"
+                                            data-subject-label="@($"{subject.SubjectCode}: {subject.SubjectName}")"
+                                            data-subject-code="@subject.SubjectCode"
+                                            data-subject-name="@subject.SubjectName">
+                                        <strong>@subject.SubjectCode</strong>
+                                        <span>@subject.SubjectName</span>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </details>
                     <span asp-validation-for="UploadDocument.SubjectId" class="teacher-stitch-field-error"></span>
                     <label class="teacher-stitch-text-input">
                         <span>Title</span>
@@ -253,7 +274,7 @@
                                             <strong>@document.Title</strong>
                                         </div>
                                     </td>
-                                    <td>@Model.FormatSubject(document)</td>
+                                    <td data-subject-label>@Model.FormatSubject(document)</td>
                                     <td>@Model.FormatDocumentDate(document.CreatedAt)</td>
                                     <td>
                                         <span class="teacher-stitch-status @statusClass" data-document-status-badge>

@@ -25,6 +25,9 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
     public CreateSubjectInputModel NewSubject { get; set; } = new();
 
     [BindProperty]
+    public UpdateSubjectInputModel UpdateSubject { get; set; } = new();
+
+    [BindProperty]
     public ImportStudentsInputModel ImportStudents { get; set; } = new();
 
     [TempData]
@@ -92,6 +95,41 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
         }
 
         SuccessMessage = "Subject and all related data were deleted.";
+
+        return RedirectToPage("/Admin/Portal", new
+        {
+            searchTerm = SearchTerm,
+            roleFilter = RoleFilter
+        });
+    }
+
+    public async Task<IActionResult> OnPostUpdateSubjectAsync(CancellationToken cancellationToken)
+    {
+        ModelState.Clear();
+        if (!TryValidateModel(UpdateSubject, nameof(UpdateSubject)))
+        {
+            await LoadAdminStateAsync(cancellationToken);
+            return Page();
+        }
+
+        var result = await adminUserService.UpdateSubjectAsync(
+            new UpdateSubjectRequest(
+                UpdateSubject.SubjectId,
+                UpdateSubject.SubjectCode,
+                UpdateSubject.SubjectName,
+                UpdateSubject.Description,
+                UpdateSubject.AssignedTeacherIds,
+                UpdateSubject.HeaderTeacherId),
+            cancellationToken);
+
+        if (!result.Succeeded)
+        {
+            ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "The subject could not be updated.");
+            await LoadAdminStateAsync(cancellationToken);
+            return Page();
+        }
+
+        SuccessMessage = $"Subject {UpdateSubject.SubjectCode.Trim().ToUpperInvariant()} was updated.";
 
         return RedirectToPage("/Admin/Portal", new
         {
@@ -282,6 +320,11 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
             : $"{subject.SubjectCode} - {subject.SubjectName}";
     }
 
+    public bool IsTeacherAssigned(AdminSubjectSummaryDto subject, Guid teacherId)
+    {
+        return subject.AssignedTeacherIds.Contains(teacherId);
+    }
+
     public static string FormatSubjectStatus(AdminSubjectSummaryDto subject)
     {
         var teacherLabel = subject.AssignedTeacherCount == 1
@@ -328,6 +371,15 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
         })
             .ToList();
 
+    public IReadOnlyList<SelectListItem> GetHeaderTeacherOptions(AdminSubjectSummaryDto subject) =>
+        Teachers.Select(teacher => new SelectListItem
+        {
+            Value = teacher.TeacherId.ToString(),
+            Text = $"{teacher.FullName} ({FormatTeacherAssignment(teacher)})",
+            Selected = subject.HeaderTeacherId == teacher.TeacherId
+        })
+            .ToList();
+
     public sealed class CreateSubjectInputModel
     {
         [Required]
@@ -362,6 +414,31 @@ public class PortalModel(IAdminUserService adminUserService) : PageModel
 
         [Display(Name = "Leader of this subject")]
         public bool IsSubjectLeader { get; set; }
+    }
+
+    public sealed class UpdateSubjectInputModel
+    {
+        [Required]
+        public Guid SubjectId { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        [Display(Name = "Subject code")]
+        public string SubjectCode { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(255)]
+        [Display(Name = "Subject name")]
+        public string SubjectName { get; set; } = string.Empty;
+
+        [Display(Name = "Description")]
+        public string? Description { get; set; }
+
+        [Display(Name = "Assigned teachers")]
+        public List<Guid> AssignedTeacherIds { get; set; } = [];
+
+        [Display(Name = "Header teacher")]
+        public Guid? HeaderTeacherId { get; set; }
     }
 
     public sealed class ImportStudentsInputModel

@@ -20,6 +20,18 @@ public sealed class SignalRTeacherSubjectRealtimeNotifier(
         }
     }
 
+    public async Task NotifySubjectUpdatedAsync(
+         TeacherSubjectUpdatedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var teacherId in notification.TeacherIds.Distinct())
+        {
+            await hubContext.Clients
+                .Group(DocumentProcessingHubGroups.ForTeacher(teacherId))
+                .SendAsync("subjectUpdated", notification, cancellationToken);
+        }
+    }
+
     public async Task NotifySubjectDeletedAsync(
         TeacherSubjectDeletedNotification notification,
         CancellationToken cancellationToken = default)

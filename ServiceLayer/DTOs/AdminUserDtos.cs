@@ -32,7 +32,9 @@ public sealed record AdminSubjectSummaryDto(
     string? Description,
     int AssignedTeacherCount,
     bool HasLeader,
-    string? LeaderName);
+    string? LeaderName,
+    IReadOnlyList<Guid> AssignedTeacherIds,
+    Guid? HeaderTeacherId);
 
 public sealed record AdminTeacherSummaryDto(
     Guid TeacherId,
@@ -58,6 +60,23 @@ public sealed record CreateSubjectResult(
     public static CreateSubjectResult Failure(string message) => new(false, null, message);
 }
 
+public sealed record UpdateSubjectRequest(
+    Guid SubjectId,
+    string? SubjectCode,
+    string? SubjectName,
+    string? Description,
+    IReadOnlyList<Guid> AssignedTeacherIds,
+    Guid? HeaderTeacherId);
+
+public sealed record UpdateSubjectResult(
+    bool Succeeded,
+    string? ErrorMessage = null)
+{
+    public static UpdateSubjectResult Success() => new(true);
+
+    public static UpdateSubjectResult Failure(string message) => new(false, message);
+}
+
 public sealed record DeleteSubjectResult(
     bool Succeeded,
     string? ErrorMessage = null)
@@ -74,6 +93,12 @@ public sealed record TeacherSubjectDeletedNotification(
     IReadOnlyList<Guid> TeacherIds);
 
 public sealed record TeacherSubjectAssignedNotification(
+    Guid SubjectId,
+    string SubjectCode,
+    string SubjectName,
+    IReadOnlyList<Guid> TeacherIds);
+
+public sealed record TeacherSubjectUpdatedNotification(
     Guid SubjectId,
     string SubjectCode,
     string SubjectName,
